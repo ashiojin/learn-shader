@@ -4,7 +4,7 @@ Getting familiar with shader programmings in Bevy
 
 ## Copy official samples by hand: [Shaders](https://bevy.org/examples-webgpu/#shaders)
 
-- [ ] [Animated](https://bevy.org/examples-webgpu/shaders/animate-shader/)
+- [x] [Animated](https://bevy.org/examples-webgpu/shaders/animate-shader/)
     > A shader that uses dynamic data like the time since startup. The time data is in the globals binding which is part of the `mesh_view_bindings` shader import.
 - [ ] [Extended material](https://bevy.org/examples-webgpu/shaders/extended-material/)
     > Demonstrates using a custom extension to the `StandardMaterial` to modify the results of the builtin pbr shader.
