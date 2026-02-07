@@ -1,0 +1,17 @@
+[package]
+name = "wesl"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+default = []
+
+[dependencies]
+bevy = { workspace = true, features=["3d", "shader_format_wesl"] }
+
+# ---
+# Workaround : see https://github.com/bevyengine/bevy/issues/10425
+[dependencies.blake3]
+version = "1.8"
+features = ["pure"]
+# ---
