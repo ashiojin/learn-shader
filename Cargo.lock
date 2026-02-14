@@ -2341,6 +2341,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ex-1-generate-pattern"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "blake3",
+]
+
+[[package]]
 name = "extended-material"
 version = "0.1.0"
 dependencies = [
