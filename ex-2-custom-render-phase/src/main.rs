@@ -103,6 +103,24 @@ fn setup(
         Transform::from_translation(Vec3::new(-0.6, 0.5, -1.1)),
     ));
 
+    // another transparent cuboid
+    commands.spawn((
+        Mesh3d(meshes.add(Cuboid::new(1.0, 1.5, 1.0))),
+        MeshMaterial3d(materials.add(StandardMaterial {
+            base_color: Color::srgba_u8(255, 255, 124, 128),
+            alpha_mode: AlphaMode::Blend,
+            ..default()
+        })),
+        Transform::from_translation(Vec3::new(0.6, 0.5, -1.1)),
+    ));
+
+    // another outer opaque cuboid
+    commands.spawn((
+        Mesh3d(meshes.add(Cuboid::new(1.0, 1.2, 1.0))),
+        MeshMaterial3d(materials.add(Color::srgb_u8(0, 255, 255))),
+        Transform::from_translation(Vec3::new(1.2, 0.5, -2.2)),
+    ));
+
     // light
     commands.spawn((
         PointLight {
