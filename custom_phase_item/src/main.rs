@@ -41,7 +41,7 @@ fn main() {
             Render,
             prepare_custom_phase_item_buffers.in_set(RenderSystems::Prepare),
         )
-        .add_systems(Render, queue_cutom_phase_item.in_set(RenderSystems::Queue));
+        .add_systems(Render, queue_custom_phase_item.in_set(RenderSystems::Queue));
 
     app.run();
 }
@@ -233,7 +233,7 @@ fn prepare_custom_phase_item_buffers(mut commands: Commands) {
     commands.init_resource::<CustomPhaseItemBuffers>();
 }
 
-fn queue_cutom_phase_item(
+fn queue_custom_phase_item(
     pipeline_cache: Res<PipelineCache>,
     mut pipeline: ResMut<CustomPhasePipeline>,
     mut opaque_render_phases: ResMut<ViewBinnedRenderPhases<Opaque3d>>,
