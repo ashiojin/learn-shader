@@ -2368,6 +2368,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ex-2-custom-render-phase"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "blake3",
+ "bytemuck",
+ "nonmax",
+]
+
+[[package]]
 name = "extended-material"
 version = "0.1.0"
 dependencies = [
