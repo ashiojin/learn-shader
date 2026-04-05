@@ -1,7 +1,7 @@
 #import bevy_pbr::{
     mesh_view_bindings::globals,
     mesh_functions,
-    view_transformations::position_world_to_clip
+    view_transformations::{position_world_to_clip, position_world_to_view}
 }
 
 struct Vertex {
@@ -12,6 +12,7 @@ struct Vertex {
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) world_position: vec4<f32>,
+    @location(1) view_position: vec3<f32>,
 }
 
 @vertex
@@ -20,6 +21,7 @@ fn vertex(vertex: Vertex) -> VertexOutput {
     var world_from_local = mesh_functions::get_world_from_local(vertex.instance_index);
     out.world_position = mesh_functions::mesh_position_local_to_world(world_from_local, vec4(vertex.position, 1.0));
     out.clip_position = position_world_to_clip(out.world_position.xyz);
+    out.view_position = position_world_to_view(out.world_position.xyz);
     return out;
 }
 
@@ -56,7 +58,9 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let ch = vec4(1.0, 1.0, 1.0, 0.1 * checkerboard(in.world_position.xyz, 30.0));
     let ns = noise(in.clip_position.xy, in.clip_position.z);
 //    let sw = step(1.0, (globals.time * 0.3)% 2.0);
-    var sw = (sin(globals.time * 2.0) + 0.5) * 0.5;
+    let ping = step(0.9, fract(in.view_position.z * 2.0 + globals.time * 1.0));
+    //var sw = (sin(globals.time * 2.0) + 0.5) * 0.5;
+    var sw = ping;
     sw = pow(sw, 2.0);
     return sw * ch + (1.0-sw) * ns;
 }
