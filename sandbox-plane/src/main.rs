@@ -22,6 +22,7 @@ fn main() {
                 }),
                 ..default()
             }),
+            myshaderlib::MyShaderLibPlugin,
             MaterialPlugin::<CustomMaterial>::default(),
         ))
         .add_systems(Startup, (setup,))

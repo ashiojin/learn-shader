@@ -3,31 +3,11 @@
     forward_io::VertexOutput,
 }
 
-fn rand(f: f32) -> f32 {
-    return fract(sin(f) * 43758.5453123);
+#import mylib::{
+    rand, rand2, noise,
 }
-fn rand2(f2: vec2<f32>) -> f32 {
-    return fract(sin(dot(f2.xy, vec2<f32>(12.9898, 78.233))) * 43.585453123);
-    //return rand(f2.x * f2.y);
-}
-fn rand3(f3: vec3<f32>) -> f32 {
-    return fract(sin(dot(f3, vec3<f32>(12.9898, 78.233, 45.164))) * 43.585453123);
-}
-fn noise(x: f32) -> f32 {
-    let i = floor(x);
-    let f = fract(x);
-    return mix(rand(i), rand(i+1.0), smoothstep(0., 1., f));
-}
-fn noise2(x: vec2<f32>) -> f32 {
-    let i = floor(x);
-    let f = fract(x);
-    let a = rand2(i);
-    let b = rand2(i + vec2(1.0, 0.0));
-    let c = rand2(i + vec2(0.0, 1.0));
-    let d = rand2(i + vec2(1.0, 1.0));
-    let u = smoothstep(vec2(0.0), vec2(1.0), f);
-    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
-}
+
+#import simplex_noise_f32::{snoise3D}
 
 fn block_noise(uv: vec2<f32>) -> vec3<f32> {
     let st = uv * 16.0;
@@ -87,14 +67,16 @@ fn truche(uv: vec2<f32>) -> vec3<f32> {
     return vec3(color);
 }
 
-
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     var color = vec3(0.0);
-    color = uneune(in.uv, globals.time);
-    let color2 = block_noise(in.uv);
+    //color = uneune(in.uv, globals.time);
+    // let color2 = block_noise(in.uv);
     //color = mix(color, color2, smoothstep(0.49, 0.51, (sin(globals.time * 2.0) + 1.0) / 2.));
-    color = color;
+    //color = color;
+
+    let n = snoise3D(vec3(in.uv * 8.0, globals.time * 0.5)) * 0.5 + 0.5;
+    color = vec3(n);
 
     //let color = truche(in.uv);
     return vec4<f32>(color, 1.0);

@@ -3576,6 +3576,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "myshaderlib"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "blake3",
+]
+
+[[package]]
 name = "naga"
 version = "27.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4667,6 +4675,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "blake3",
+ "myshaderlib",
 ]
 
 [[package]]
