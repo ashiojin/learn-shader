@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
 members = ["animated"
-, "custom_phase_item", "custom_render_phase", "ex-1-generate-pattern", "ex-2-custom-render-phase", "extended-material", "post_processing", "wesl"]
+, "custom_phase_item", "custom_render_phase", "ex-1-generate-pattern", "ex-2-custom-render-phase", "extended-material", "post_processing", "sandbox-plane", "wesl"]
 
 [workspace.dependencies]
 bevy = { version = "0.18", default-features=false }
