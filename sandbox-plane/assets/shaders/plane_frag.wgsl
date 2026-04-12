@@ -5,6 +5,9 @@
 
 #import mylib::{
     rand, rand2, noise,
+    PI,
+    rotate2d, scale2d,
+    horizontal_lines, vertical_lines,
 }
 
 #import simplex_noise_f32::{snoise3D}
@@ -67,6 +70,7 @@ fn truche(uv: vec2<f32>) -> vec3<f32> {
     return vec3(color);
 }
 
+
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     var color = vec3(0.0);
@@ -75,8 +79,13 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     //color = mix(color, color2, smoothstep(0.49, 0.51, (sin(globals.time * 2.0) + 1.0) / 2.));
     //color = color;
 
-    let n = snoise3D(vec3(in.uv * 8.0, globals.time * 0.5)) * 0.5 + 0.5;
-    color = vec3(n);
+    //let n = 0.0;
+    let n = snoise3D(vec3(in.uv * 5.0, globals.time * 0.5)) * 0.5 + 0.5;
+    //let p = rotate2d(n * sin(globals.time * 2.3) * 0.5 * PI) * ((in.uv - 0.5) * 2.);
+    //let p = scale2d(abs(n)) * ((in.uv - 0.5) * 2.);
+    let p = scale2d(n) * rotate2d(n * sin(globals.time) * 2. * PI) * ((in.uv - 0.5) * 2.);
+    let l = horizontal_lines(p, 1.) + vertical_lines(p, 1.);
+    color = vec3(l, n, p.x *p.x + p.y * p.y);
 
     //let color = truche(in.uv);
     return vec4<f32>(color, 1.0);
