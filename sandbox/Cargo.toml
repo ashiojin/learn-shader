@@ -1,0 +1,15 @@
+[package]
+name = "sandbox"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { workspace = true, features=["3d", "dev"] }
+myshaderlib = { path = "../myshaderlib" }
+
+# ---
+# Workaround : see https://github.com/bevyengine/bevy/issues/10425
+[dependencies.blake3]
+version = "1.8"
+features = ["pure"]
+# ---

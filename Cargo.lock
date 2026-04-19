@@ -4670,6 +4670,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sandbox"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "blake3",
+ "myshaderlib",
+]
+
+[[package]]
 name = "sandbox-plane"
 version = "0.1.0"
 dependencies = [
