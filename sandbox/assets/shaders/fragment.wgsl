@@ -118,5 +118,6 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     // }
 
     //let color = truche(in.uv);
+    color.b = in.uv.x;
     return vec4<f32>(color);
 }
