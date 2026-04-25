@@ -2,6 +2,8 @@ use std::f32::consts::PI;
 
 use bevy::{color::palettes::css, prelude::*, render::render_resource::AsBindGroup};
 
+mod meshes;
+
 fn main() {
     let asset_root_path = std::env::var("ASSETS_DIR").unwrap_or("assets".into());
     App::new()
@@ -119,13 +121,17 @@ enum SampleType {
     Plane,
     Cube,
     Cone,
+    Sphere,
+    Ring,
 }
 impl SampleType {
     fn get_next(&self) -> Self {
         match self {
             SampleType::Plane => SampleType::Cube,
             SampleType::Cube => SampleType::Cone,
-            SampleType::Cone => SampleType::Plane,
+            SampleType::Cone => SampleType::Sphere,
+            SampleType::Sphere => SampleType::Ring,
+            SampleType::Ring => SampleType::Plane,
         }
     }
 }
@@ -152,6 +158,8 @@ impl SampleState {
             SampleType::Plane => spawn_plane(commands, meshes, materials),
             SampleType::Cube => spawn_cube(commands, meshes, materials),
             SampleType::Cone => spawn_cone(commands, meshes, materials),
+            SampleType::Sphere => spawn_sphere(commands, meshes, materials),
+            SampleType::Ring => spawn_ring(commands, meshes, materials),
         };
 
         self.entity = Some(entity);
@@ -204,7 +212,6 @@ fn react_to_keyevent(
         KeyCode::KeyD,
         KeyCode::KeyQ,
     ]) {
-        info!("trans : {:?}", sattelite_camera.1);
         if keys.just_pressed(KeyCode::KeyQ) {
             sattelite_camera.0.reset();
         } else {
@@ -224,7 +231,6 @@ fn react_to_keyevent(
         }
         let new_transform = sattelite_camera.0.make_transform();
         sattelite_camera.1.clone_from(&new_transform);
-        info!("->trans : {:?}", sattelite_camera.1);
     }
 
     // press 0 to toggle gizmo
@@ -285,6 +291,38 @@ fn spawn_cone(
     commands
         .spawn((
             Mesh3d(meshes.add(Cone::new(0.5, 1.0))),
+            MeshMaterial3d(materials.add(CustomMaterial {})),
+            Transform::from_xyz(0., 0., 0.),
+            SampleMesh,
+        ))
+        .id()
+}
+
+fn spawn_sphere(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<CustomMaterial>,
+) -> Entity {
+    commands
+        .spawn((
+            Mesh3d(meshes.add(Sphere::new(0.5))),
+            MeshMaterial3d(materials.add(CustomMaterial {})),
+            Transform::from_xyz(0., 0., 0.),
+            SampleMesh,
+        ))
+        .id()
+}
+
+fn spawn_ring(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<CustomMaterial>,
+) -> Entity {
+    commands
+        .spawn((
+            Mesh3d(meshes.add(meshes::Ring3d::new(Dir3::Z, 1.0, 0.25)
+                    .with_resolution(32)
+                    .mesh())),
             MeshMaterial3d(materials.add(CustomMaterial {})),
             Transform::from_xyz(0., 0., 0.),
             SampleMesh,
