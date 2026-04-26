@@ -123,15 +123,18 @@ enum SampleType {
     Cone,
     Sphere,
     Ring,
+    SphericalZone,
 }
 impl SampleType {
     fn get_next(&self) -> Self {
         match self {
+            // TODO: use a crate to generate this boilerplate code
             SampleType::Plane => SampleType::Cube,
             SampleType::Cube => SampleType::Cone,
             SampleType::Cone => SampleType::Sphere,
             SampleType::Sphere => SampleType::Ring,
-            SampleType::Ring => SampleType::Plane,
+            SampleType::Ring => SampleType::SphericalZone,
+            SampleType::SphericalZone => SampleType::Plane,
         }
     }
 }
@@ -160,6 +163,7 @@ impl SampleState {
             SampleType::Cone => spawn_cone(commands, meshes, materials),
             SampleType::Sphere => spawn_sphere(commands, meshes, materials),
             SampleType::Ring => spawn_ring(commands, meshes, materials),
+            SampleType::SphericalZone => spawn_spherical_zone(commands, meshes, materials),
         };
 
         self.entity = Some(entity);
@@ -320,9 +324,40 @@ fn spawn_ring(
 ) -> Entity {
     commands
         .spawn((
-            Mesh3d(meshes.add(meshes::Ring3d::new(Dir3::Z, 1.0, 0.25)
-                    .with_resolution(32)
-                    .mesh())),
+            Mesh3d(
+                meshes.add(
+                    meshes::FlatRing3d::new(Dir3::Z, 1.0, 0.25)
+                        .with_resolution(32)
+                        .mesh(),
+                ),
+            ),
+            MeshMaterial3d(materials.add(CustomMaterial {})),
+            Transform::from_xyz(0., 0., 0.),
+            SampleMesh,
+        ))
+        .id()
+}
+
+fn spawn_spherical_zone(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<CustomMaterial>,
+) -> Entity {
+    commands
+        .spawn((
+            Mesh3d(
+                meshes.add(
+                    meshes::SphericalZone::new(
+                        0.5,
+                        7. * PI / 16.0,
+                        9. * PI / 16.0
+                        )
+                        .with_circle_resolution(64)
+                        .with_angle_resolution(8)
+                        .with_double_sided(true)
+                        .mesh(),
+                ),
+            ),
             MeshMaterial3d(materials.add(CustomMaterial {})),
             Transform::from_xyz(0., 0., 0.),
             SampleMesh,
