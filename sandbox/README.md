@@ -13,11 +13,12 @@ A mesh is displayed to which the fragment shader is applied.
 - r: Reload `assets/shaders/fragment.wgsl`
 - 0: Show a cross at the origin
 - b: Change the background
-
+- 1: Change the material (fragment.wgsl <-> uv test texture)
 
 ## TODO
 
-- Add another fragment shader to show UV coordinates
+- Add some light
+- Change material to [Extended material](https://bevy.org/examples-webgpu/shaders/extended-material/)
 - Add some inputs to the fragment shader
   - float values
   - textures
