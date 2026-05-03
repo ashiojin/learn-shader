@@ -1,7 +1,16 @@
 use std::f32::consts::PI;
 
-use bevy::{ecs::component::Component, math::{Quat, Vec3}, transform::components::Transform};
-
+use bevy::{
+    ecs::{
+        component::Component,
+        entity::Entity,
+        query::{With, Without},
+        system::{Query, Single},
+    },
+    log::info,
+    math::{Quat, Vec3},
+    transform::components::Transform,
+};
 
 #[derive(Component, Debug)]
 pub struct SatelliteCamera {
@@ -30,6 +39,10 @@ pub enum ZoomDirection {
     In,
     Out,
 }
+
+#[derive(Component, Debug)]
+pub struct FollowCamera(#[allow(dead_code)] pub Entity);
+
 impl SatelliteCamera {
     pub fn new(distance: f32) -> Self {
         Self {
@@ -72,10 +85,12 @@ impl SatelliteCamera {
     }
 
     pub fn zoom(&mut self, direction: ZoomDirection, delt_time: f32) {
-        let delta = self.zoom_speed * delt_time * match direction {
-            ZoomDirection::In => -1.0,
-            ZoomDirection::Out => 1.0,
-        };
+        let delta = self.zoom_speed
+            * delt_time
+            * match direction {
+                ZoomDirection::In => -1.0,
+                ZoomDirection::Out => 1.0,
+            };
         self.distance += delta;
         if self.distance < 0.1 {
             self.distance = 0.1;
@@ -84,7 +99,6 @@ impl SatelliteCamera {
 
     fn add_rotate_y(&mut self, delta: f32) {
         self.rotate_y += delta;
-        // keep rotate_y in range [0, 2PI]
         if self.rotate_y > 2.0 * PI {
             self.rotate_y -= 2.0 * PI;
         } else if self.rotate_y < 0.0 {
@@ -100,6 +114,18 @@ impl SatelliteCamera {
             self.rotate_x = PI / 2.0 - ep;
         } else if self.rotate_x < -PI / 2.0 + ep {
             self.rotate_x = -PI / 2.0 + ep;
+        }
+    }
+}
+
+pub fn update_camera_follower(
+    camera: Single<(Entity, &Transform), With<SatelliteCamera>>,
+    mut q_foller: Query<(&mut Transform, &FollowCamera), Without<SatelliteCamera>>,
+) {
+    let (camera_entity, camera_transform) = camera.into_inner();
+    for (mut transform, follow_camera) in q_foller.iter_mut() {
+        if follow_camera.0 == camera_entity {
+            transform.clone_from(camera_transform);
         }
     }
 }

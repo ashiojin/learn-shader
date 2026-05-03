@@ -3,6 +3,7 @@ use bevy::prelude::*;
 mod background;
 mod camera;
 mod config;
+mod light;
 mod meshes;
 mod sample;
 
@@ -10,7 +11,11 @@ use background::BackgroundState;
 use camera::SatelliteCamera;
 
 use crate::{
-    background::update_background, camera::ZoomDirection, config::{ConfigState, draw_gizmo}, sample::{CustomMaterial, SampleState, update_sample}
+    background::change_background,
+    camera::{ZoomDirection, update_camera_follower},
+    config::{ConfigState, draw_gizmo},
+    light::{LightState, change_light, update_rotate_light},
+    sample::{CustomMaterial, SampleState, change_sample},
 };
 
 fn main() {
@@ -42,16 +47,20 @@ fn main() {
         .insert_resource(SampleState::default())
         .insert_resource(ConfigState::default())
         .insert_resource(BackgroundState::default())
+        .insert_resource(LightState::default())
         .add_systems(Startup, (setup,))
         .add_systems(Update, (react_to_keyevent, draw_gizmo))
+        .add_systems(Update, update_camera_follower)
+        .add_systems(Update, update_rotate_light)
         .add_systems(
             Update,
-            update_sample.run_if(resource_changed::<SampleState>),
+            change_sample.run_if(resource_changed::<SampleState>),
         )
         .add_systems(
             Update,
-            update_background.run_if(resource_changed::<BackgroundState>),
+            change_background.run_if(resource_changed::<BackgroundState>),
         )
+        .add_systems(Update, change_light.run_if(resource_changed::<LightState>))
         .run();
 }
 
@@ -67,6 +76,7 @@ fn setup(mut commands: Commands) {
 
 const SHADER_ASSET_PATH: &str = "shaders/fragment.wgsl";
 
+#[allow(clippy::too_many_arguments)]
 fn react_to_keyevent(
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
@@ -75,6 +85,7 @@ fn react_to_keyevent(
     mut sattelite_camera: Single<(&mut SatelliteCamera, &mut Transform)>,
     mut other_state: ResMut<ConfigState>,
     mut background: ResMut<BackgroundState>,
+    mut light_state: ResMut<LightState>,
 ) {
     // press N to switch to next sample
     if keys.just_pressed(KeyCode::KeyN) {
@@ -133,6 +144,11 @@ fn react_to_keyevent(
     // press b to toggle background
     if keys.just_pressed(KeyCode::KeyB) {
         background.next();
+    }
+
+    // press l to toggle light pattern
+    if keys.just_pressed(KeyCode::KeyL) {
+        light_state.next_pattern();
     }
 
     // press 1 to switch material

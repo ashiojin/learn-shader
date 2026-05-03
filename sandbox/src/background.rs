@@ -1,7 +1,7 @@
 use bevy::{asset::RenderAssetUsages, color::palettes::css, prelude::*, render::render_resource::{Extent3d, TextureDimension, TextureFormat}};
 
 
-pub fn update_background(
+pub fn change_background(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,

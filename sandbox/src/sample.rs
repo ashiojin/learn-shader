@@ -75,7 +75,7 @@ impl SampleState {
     }
 }
 
-pub fn update_sample(
+pub fn change_sample(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<CustomMaterial>>,
