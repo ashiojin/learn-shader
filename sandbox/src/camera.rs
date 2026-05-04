@@ -7,7 +7,6 @@ use bevy::{
         query::{With, Without},
         system::{Query, Single},
     },
-    log::info,
     math::{Quat, Vec3},
     transform::components::Transform,
 };

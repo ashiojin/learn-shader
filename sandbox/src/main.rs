@@ -15,7 +15,7 @@ use crate::{
     camera::{ZoomDirection, update_camera_follower},
     config::{ConfigState, draw_gizmo},
     light::{LightState, change_light, update_rotate_light},
-    sample::{CustomMaterial, SampleState, change_sample},
+    sample::{CustomMaterial, MyExtendedMaterialPlugin, SampleState, change_sample, reload_shaders},
 };
 
 fn main() {
@@ -43,6 +43,7 @@ fn main() {
                 }),
             myshaderlib::MyShaderLibPlugin,
             MaterialPlugin::<CustomMaterial>::default(),
+            MyExtendedMaterialPlugin::default(),
         ))
         .insert_resource(SampleState::default())
         .insert_resource(ConfigState::default())
@@ -94,7 +95,7 @@ fn react_to_keyevent(
 
     // press R to reload shader
     if keys.just_pressed(KeyCode::KeyR) {
-        asset_server.reload(SHADER_ASSET_PATH);
+        reload_shaders(&asset_server);
     }
 
     // press WASD to rotate camera

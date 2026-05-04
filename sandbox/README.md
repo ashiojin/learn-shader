@@ -4,13 +4,16 @@ A Sanxbox to write a fragment shader.
 
 ## Usage
 
-This app uses the fragment shader `assets/shaders/fragment.wgsl`.
+This app uses the fragment shaders:
+- `assets/shaders/fragment.wgsl`
+- `assets/shaders/extended_material.wgsl`
+
 A mesh is displayed to which the fragment shader is applied.
 
 - wasd: Rotate the mesh
 - q: Reset the camera
 - n: Change the mesh
-- r: Reload `assets/shaders/fragment.wgsl`
+- r: Reload shaders
 - 0: Show a cross at the origin
 - b: Change the background
 - l: Change the light
@@ -18,7 +21,6 @@ A mesh is displayed to which the fragment shader is applied.
 
 ## TODO
 
-- Change material to [Extended material](https://bevy.org/examples-webgpu/shaders/extended-material/)
 - More background
   - Some objects behind sample
   - Some objects around sample

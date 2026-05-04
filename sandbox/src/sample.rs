@@ -1,8 +1,12 @@
 use std::f32::consts::PI;
 
-use bevy::{prelude::*, render::render_resource::AsBindGroup};
+use bevy::{color::palettes::css, pbr::ExtendedMaterial, prelude::*, render::render_resource::AsBindGroup};
 
-use crate::{SHADER_ASSET_PATH, meshes};
+use crate::{SHADER_ASSET_PATH, meshes, sample::extended_material::{MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension}};
+
+mod extended_material;
+
+pub use extended_material::MyExtendedMaterialPlugin;
 
 #[derive(Component, Debug, Clone)]
 pub struct SampleMesh;
@@ -60,6 +64,7 @@ pub struct SampleState {
 pub enum SampleMaterialType {
     #[default]
     User,
+    UserExtended,
     UvTest1024,
 }
 
@@ -70,7 +75,8 @@ impl SampleState {
     pub fn next_material(&mut self) {
         self.material_type = match self.material_type {
             SampleMaterialType::User => SampleMaterialType::UvTest1024,
-            SampleMaterialType::UvTest1024 => SampleMaterialType::User,
+            SampleMaterialType::UvTest1024 => SampleMaterialType::UserExtended,
+            SampleMaterialType::UserExtended => SampleMaterialType::User,
         };
     }
 }
@@ -79,6 +85,7 @@ pub fn change_sample(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<CustomMaterial>>,
+    mut extended_materials: ResMut<Assets<MyExtendedMaterial>>,
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
     mut sample_state: ResMut<SampleState>,
@@ -103,6 +110,19 @@ pub fn change_sample(
             commands
                 .entity(entity)
                 .insert(MeshMaterial3d(materials.add(CustomMaterial {})));
+        }
+        SampleMaterialType::UserExtended => {
+            let base_material = StandardMaterial {
+                base_color: css::LIGHT_GRAY.into(),
+                ..Default::default()
+            };
+            let material = ExtendedMaterial {
+                base: base_material,
+                extension: MyExtension::new(LinearRgba::new(1.0, 0.0, 0.0, 0.25)),
+            };
+            commands
+                .entity(entity)
+                .insert(MeshMaterial3d(extended_materials.add(material)));
         }
         SampleMaterialType::UvTest1024 => {
             let texture_handle = asset_server.load(myshaderlib::path_to_uv_test1024());
@@ -132,3 +152,8 @@ impl Material for CustomMaterial {
     }
 }
 
+
+pub fn reload_shaders(asset_server:&AssetServer) {
+    asset_server.reload(SHADER_ASSET_PATH);
+    asset_server.reload(MY_EXTENSION_SHADER_PATH);
+}
