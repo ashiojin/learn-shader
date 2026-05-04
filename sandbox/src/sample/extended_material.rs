@@ -26,6 +26,10 @@ impl MaterialExtension for MyExtension {
     fn alpha_mode() -> Option<AlphaMode> {
         Some(AlphaMode::Blend)
     }
+
+    fn vertex_shader() -> bevy::shader::ShaderRef {
+        MY_EXTENSION_SHADER_PATH.into()
+    }
 }
 
 pub type MyExtendedMaterial = ExtendedMaterial<StandardMaterial, MyExtension>;
