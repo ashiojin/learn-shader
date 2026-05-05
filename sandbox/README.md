@@ -5,6 +5,7 @@ A Sanxbox to write a fragment shader.
 ## Usage
 
 This app uses the fragment shaders:
+
 - `assets/shaders/fragment.wgsl`
 - `assets/shaders/extended_material.wgsl`
 

@@ -2,7 +2,7 @@ use std::f32::consts::PI;
 
 use bevy::{color::palettes::css, pbr::ExtendedMaterial, prelude::*, render::render_resource::AsBindGroup};
 
-use crate::{SHADER_ASSET_PATH, meshes, sample::extended_material::{MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension}};
+use crate::{meshes, sample::extended_material::{MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension}};
 
 mod extended_material;
 
@@ -142,6 +142,7 @@ pub fn change_sample(
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 pub struct CustomMaterial {}
 
+const SHADER_ASSET_PATH: &str = "shaders/fragment.wgsl";
 impl Material for CustomMaterial {
     fn fragment_shader() -> bevy::shader::ShaderRef {
         SHADER_ASSET_PATH.into()

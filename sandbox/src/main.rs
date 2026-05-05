@@ -75,7 +75,6 @@ fn setup(mut commands: Commands) {
     ));
 }
 
-const SHADER_ASSET_PATH: &str = "shaders/fragment.wgsl";
 
 #[allow(clippy::too_many_arguments)]
 fn react_to_keyevent(
