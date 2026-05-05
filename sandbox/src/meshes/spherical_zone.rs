@@ -124,6 +124,7 @@ impl MeshBuilder for SphericalZoneMeshBuilder {
                 normals.push(vertex.normalize());
             }
         }
+        let vertices_num = vertices.len();
         if self.is_double_sided {
             // inner side
             // we can copy the vertices and uvs.
@@ -138,32 +139,37 @@ impl MeshBuilder for SphericalZoneMeshBuilder {
 
             // indices follows
         }
+        let inner_vert_idx_offset = vertices_num as u32;
         for i in 0..self.circle_resolution {
             for j in 0..self.angle_resolution {
                 let idx0 = i * (self.angle_resolution + 1) + j;
                 let idx1 = (i + 1) * (self.angle_resolution + 1) + j;
                 let idx2 = (i + 1) * (self.angle_resolution + 1) + j + 1;
                 let idx3 = i * (self.angle_resolution + 1) + j + 1;
+
+                if self.is_double_sided {
+                    // inner side
+                    // Push inner side first so it renders before the outer side,
+                    // which helps with alpha blending when viewed from the outside.
+                    let i_idx0 = idx0 + inner_vert_idx_offset;
+                    let i_idx1 = idx1 + inner_vert_idx_offset;
+                    let i_idx2 = idx2 + inner_vert_idx_offset;
+                    let i_idx3 = idx3 + inner_vert_idx_offset;
+                    indices.push(i_idx0);
+                    indices.push(i_idx1);
+                    indices.push(i_idx2);
+                    indices.push(i_idx0);
+                    indices.push(i_idx2);
+                    indices.push(i_idx3);
+                }
+
+                // outer side
                 indices.push(idx0);
                 indices.push(idx2);
                 indices.push(idx1);
                 indices.push(idx0);
                 indices.push(idx3);
                 indices.push(idx2);
-
-                if self.is_double_sided {
-                    // inner side
-                    let idx0 = i * (self.angle_resolution + 1) + j;
-                    let idx1 = (i + 1) * (self.angle_resolution + 1) + j;
-                    let idx2 = (i + 1) * (self.angle_resolution + 1) + j + 1;
-                    let idx3 = i * (self.angle_resolution + 1) + j + 1;
-                    indices.push(idx0);
-                    indices.push(idx1);
-                    indices.push(idx2);
-                    indices.push(idx0);
-                    indices.push(idx2);
-                    indices.push(idx3);
-                }
             }
         }
 
