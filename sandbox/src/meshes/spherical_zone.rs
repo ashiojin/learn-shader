@@ -1,7 +1,11 @@
 use bevy::{
-    asset::RenderAssetUsages, log::*, math::{
-        Vec3, primitives::{Measured2d, Primitive3d}
-    }, mesh::{Mesh, MeshBuilder, Meshable}
+    asset::RenderAssetUsages,
+    log::*,
+    math::{
+        Vec3,
+        primitives::{Measured2d, Primitive3d},
+    },
+    mesh::{Mesh, MeshBuilder, Meshable},
 };
 
 #[derive(Copy, Clone)]
@@ -24,8 +28,14 @@ impl SphericalZone {
     pub fn new(radius: f32, angle_up: f32, angle_down: f32) -> Self {
         assert!(radius > 0.0, "radius must be positive");
         assert!(angle_up >= 0.0, "angle_up must be non-negative");
-        assert!(angle_down > angle_up, "angle_down must be greater than angle_up");
-        assert!(angle_down <= std::f32::consts::PI, "angle_down must be less than or equal to PI");
+        assert!(
+            angle_down > angle_up,
+            "angle_down must be greater than angle_up"
+        );
+        assert!(
+            angle_down <= std::f32::consts::PI,
+            "angle_down must be less than or equal to PI"
+        );
         Self {
             radius,
             angle_up,
@@ -56,7 +66,9 @@ impl SphericalZone {
 
 impl Measured2d for SphericalZone {
     fn area(&self) -> f32 {
-        2.0 * std::f32::consts::PI * self.radius * self.radius
+        2.0 * std::f32::consts::PI
+            * self.radius
+            * self.radius
             * (self.angle_up.sin() + self.angle_down.sin())
     }
 
@@ -80,8 +92,6 @@ impl Meshable for SphericalZone {
     }
 }
 
-
-
 pub struct SphericalZoneMeshBuilder {
     radius: f32,
     angle_up: f32,
@@ -92,15 +102,18 @@ pub struct SphericalZoneMeshBuilder {
 }
 
 impl MeshBuilder for SphericalZoneMeshBuilder {
-
     fn build(&self) -> Mesh {
         // up: Dir3::Y
         // up edges has v=0 (uv cordinate)
         // start of u (uv cordinate): 0/1 at the Dir3::Z (Forward). it is CCW from the top view.
-        
-        let num_of_vertices = (self.circle_resolution + 1) * (self.angle_resolution + 1) * if self.is_double_sided { 2 } else { 1 };
-        let num_of_indices = self.circle_resolution * self.angle_resolution * 6 * if self.is_double_sided { 2 } else { 1 };
 
+        let num_of_vertices = (self.circle_resolution + 1)
+            * (self.angle_resolution + 1)
+            * if self.is_double_sided { 2 } else { 1 };
+        let num_of_indices = self.circle_resolution
+            * self.angle_resolution
+            * 6
+            * if self.is_double_sided { 2 } else { 1 };
 
         let mut vertices = Vec::with_capacity(num_of_vertices as usize);
         let mut uvs = Vec::with_capacity(num_of_vertices as usize);
@@ -140,17 +153,18 @@ impl MeshBuilder for SphericalZoneMeshBuilder {
             // indices follows
         }
         let inner_vert_idx_offset = vertices_num as u32;
-        for i in 0..self.circle_resolution {
-            for j in 0..self.angle_resolution {
-                let idx0 = i * (self.angle_resolution + 1) + j;
-                let idx1 = (i + 1) * (self.angle_resolution + 1) + j;
-                let idx2 = (i + 1) * (self.angle_resolution + 1) + j + 1;
-                let idx3 = i * (self.angle_resolution + 1) + j + 1;
 
-                if self.is_double_sided {
-                    // inner side
-                    // Push inner side first so it renders before the outer side,
-                    // which helps with alpha blending when viewed from the outside.
+        if self.is_double_sided {
+            // inner side
+            // Push inner side first so it renders before the outer side,
+            // which helps with alpha blending when viewed from the outside.
+            for i in 0..self.circle_resolution {
+                for j in 0..self.angle_resolution {
+                    let idx0 = i * (self.angle_resolution + 1) + j;
+                    let idx1 = (i + 1) * (self.angle_resolution + 1) + j;
+                    let idx2 = (i + 1) * (self.angle_resolution + 1) + j + 1;
+                    let idx3 = i * (self.angle_resolution + 1) + j + 1;
+
                     let i_idx0 = idx0 + inner_vert_idx_offset;
                     let i_idx1 = idx1 + inner_vert_idx_offset;
                     let i_idx2 = idx2 + inner_vert_idx_offset;
@@ -162,6 +176,15 @@ impl MeshBuilder for SphericalZoneMeshBuilder {
                     indices.push(i_idx2);
                     indices.push(i_idx3);
                 }
+            }
+        }
+
+        for i in 0..self.circle_resolution {
+            for j in 0..self.angle_resolution {
+                let idx0 = i * (self.angle_resolution + 1) + j;
+                let idx1 = (i + 1) * (self.angle_resolution + 1) + j;
+                let idx2 = (i + 1) * (self.angle_resolution + 1) + j + 1;
+                let idx3 = i * (self.angle_resolution + 1) + j + 1;
 
                 // outer side
                 indices.push(idx0);
@@ -174,11 +197,15 @@ impl MeshBuilder for SphericalZoneMeshBuilder {
         }
 
         // debug: num of
-        debug!("sphere: v: {}/{}, uvs: {}, normals: {}, indices: {}/{}",
-                vertices.len(), num_of_vertices,
-                uvs.len(),
-                normals.len(),
-                indices.len(), num_of_indices);
+        debug!(
+            "sphere: v: {}/{}, uvs: {}, normals: {}, indices: {}/{}",
+            vertices.len(),
+            num_of_vertices,
+            uvs.len(),
+            normals.len(),
+            indices.len(),
+            num_of_indices
+        );
 
         Mesh::new(
             bevy::mesh::PrimitiveTopology::TriangleList,

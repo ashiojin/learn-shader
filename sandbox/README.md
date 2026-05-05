@@ -34,5 +34,4 @@ A mesh is displayed to which the fragment shader is applied.
 
 ## Issues
 
-- On rendering a spherical ring's meshes, alpha blending is broken. The meshes would not be sorted. 
-  - Check `CustomMaterial` and `ExtendedMaterial` are treated as `SortedPhaseItem`.
+
