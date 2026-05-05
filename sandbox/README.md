@@ -22,11 +22,17 @@ A mesh is displayed to which the fragment shader is applied.
 
 ## TODO
 
-- More background
-  - Some objects behind sample
-  - Some objects around sample
+- Allow the window to be resized
 - Add some inputs to the fragment shader
   - float values
   - textures
+- More background
+  - Some objects behind sample
+  - Some objects around sample
 - File selector to read other fragment shaders
 - More meshes?
+
+## Issues
+
+- On rendering a spherical ring's meshes, alpha blending is broken. The meshes would not be sorted. 
+  - Check `CustomMaterial` and `ExtendedMaterial` are treated as `SortedPhaseItem`.
