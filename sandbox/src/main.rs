@@ -15,7 +15,9 @@ use crate::{
     camera::{ZoomDirection, update_camera_follower},
     config::{ConfigState, draw_gizmo},
     light::{LightState, change_light, update_rotate_light},
-    sample::{CustomMaterial, MyExtendedMaterialPlugin, SampleState, change_sample, reload_shaders},
+    sample::{
+        CustomMaterial, MyExtendedMaterialPlugin, SampleState, change_sample, reload_shaders,
+    },
 };
 
 fn main() {
@@ -74,7 +76,6 @@ fn setup(mut commands: Commands) {
         satellite_camera,
     ));
 }
-
 
 #[allow(clippy::too_many_arguments)]
 fn react_to_keyevent(

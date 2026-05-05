@@ -1,8 +1,13 @@
 use std::f32::consts::PI;
 
-use bevy::{color::palettes::css, pbr::ExtendedMaterial, prelude::*, render::render_resource::AsBindGroup};
+use bevy::{
+    color::palettes::css, pbr::ExtendedMaterial, prelude::*, render::render_resource::AsBindGroup,
+};
 
-use crate::{meshes, sample::extended_material::{MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension}};
+use crate::{
+    meshes,
+    sample::extended_material::{MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension},
+};
 
 mod extended_material;
 
@@ -42,12 +47,16 @@ impl SampleType {
             SampleType::Sphere => Sphere::new(0.5).mesh().into(),
             SampleType::Ring => meshes::FlatRing3d::new(Dir3::Z, 1.0, 0.25)
                 .with_resolution(32)
-                .mesh().into(),
-            SampleType::SphericalZone => meshes::SphericalZone::new(0.5, 7. * PI / 16.0, 9. * PI / 16.0)
-                .with_circle_resolution(64)
-                .with_angle_resolution(8)
-                .with_double_sided(true)
-                .mesh().into(),
+                .mesh()
+                .into(),
+            SampleType::SphericalZone => {
+                meshes::SphericalZone::new(0.5, 7. * PI / 16.0, 9. * PI / 16.0)
+                    .with_circle_resolution(64)
+                    .with_angle_resolution(8)
+                    .with_double_sided(true)
+                    .mesh()
+                    .into()
+            }
         }
     }
 }
@@ -96,13 +105,13 @@ pub fn change_sample(
         commands.entity(entity).despawn();
     }
 
-    let entity = commands.spawn(
-        (
+    let entity = commands
+        .spawn((
             Mesh3d(meshes.add(sample_state.sample_type.mesh())),
             Transform::from_xyz(0., 0., 0.),
             SampleMesh,
-        )
-    ).id();
+        ))
+        .id();
 
     // add material
     match sample_state.material_type {
@@ -153,8 +162,7 @@ impl Material for CustomMaterial {
     }
 }
 
-
-pub fn reload_shaders(asset_server:&AssetServer) {
+pub fn reload_shaders(asset_server: &AssetServer) {
     asset_server.reload(SHADER_ASSET_PATH);
     asset_server.reload(MY_EXTENSION_SHADER_PATH);
 }

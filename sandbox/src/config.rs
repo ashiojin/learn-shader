@@ -2,7 +2,6 @@ use bevy::{color::palettes::css, prelude::*};
 
 use crate::sample::SampleMesh;
 
-
 #[derive(Resource, Debug, Default)]
 pub struct ConfigState {
     gizmo_cross: bool,

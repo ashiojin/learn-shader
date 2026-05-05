@@ -1,5 +1,9 @@
-use bevy::{asset::RenderAssetUsages, color::palettes::css, prelude::*, render::render_resource::{Extent3d, TextureDimension, TextureFormat}};
-
+use bevy::{
+    asset::RenderAssetUsages,
+    color::palettes::css,
+    prelude::*,
+    render::render_resource::{Extent3d, TextureDimension, TextureFormat},
+};
 
 pub fn change_background(
     mut commands: Commands,

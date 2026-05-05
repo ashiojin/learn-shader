@@ -247,6 +247,9 @@ pub fn change_light(
 
 pub fn update_rotate_light(time: Res<Time>, mut query: Query<&mut Transform, With<RotateLight>>) {
     for mut transform in query.iter_mut() {
-        transform.rotate_around(Vec3::ZERO, Quat::from_rotation_y(PI * time.delta_secs() / 4.0));
+        transform.rotate_around(
+            Vec3::ZERO,
+            Quat::from_rotation_y(PI * time.delta_secs() / 4.0),
+        );
     }
 }

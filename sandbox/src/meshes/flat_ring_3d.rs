@@ -1,10 +1,11 @@
 use bevy::{
-    asset::RenderAssetUsages, math::{
+    asset::RenderAssetUsages,
+    math::{
         Dir3,
         primitives::{Measured2d, Primitive3d},
-    }, mesh::{Mesh, MeshBuilder, Meshable}
+    },
+    mesh::{Mesh, MeshBuilder, Meshable},
 };
-
 
 #[derive(Copy, Clone)]
 pub struct FlatRing3d {
@@ -103,8 +104,8 @@ impl MeshBuilder for FlatRing3dMeshBuilder {
             uvs.push([u, 1.0]);
         }
 
-        let indices: Vec<u32> = (0..((self.resolution+1) * 2)).collect();
-        let normals = vec![self.normal.as_vec3(); ((self.resolution+1) * 2) as usize];
+        let indices: Vec<u32> = (0..((self.resolution + 1) * 2)).collect();
+        let normals = vec![self.normal.as_vec3(); ((self.resolution + 1) * 2) as usize];
 
         Mesh::new(
             bevy::mesh::PrimitiveTopology::TriangleStrip,
@@ -112,7 +113,7 @@ impl MeshBuilder for FlatRing3dMeshBuilder {
         )
         .with_inserted_indices(bevy::mesh::Indices::U32(indices))
         .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, vertices)
-        .with_inserted_attribute( Mesh::ATTRIBUTE_NORMAL, normals)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals)
         .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
     }
 }
