@@ -159,8 +159,15 @@ fn fragment(
     in: VertexOutput,
     @builtin(front_facing) is_front: bool,
 ) -> FragmentOutput {
+    let t_sin = sin(globals.time * 2.);
     var pbr_input = pbr_input_from_standard_material(in, is_front);
+    let v = cross(pbr_input.V, pbr_input.N);
+    let lv = length(v);
+    let l = smoothstep(0.5, 1.0, lv);
 
+    pbr_input.material.base_color = vec4(0.8, 0.7, 0.1, 1.0);
+
+    //pbr_input.material.emissive = mix(pbr_input.material.emissive, vec4(1.0, 1.0, 0.0, 0.0), l);
     pbr_input.material.base_color = alpha_discard(pbr_input.material, pbr_input.material.base_color);
 
     var out: FragmentOutput;
@@ -168,9 +175,9 @@ fn fragment(
 
     out.color = main_pass_post_lighting_processing(pbr_input, out.color);
 
-    let t_sin = sin(globals.time * 2.);
+    out.color.a = l;
 
-    out.color = mix(out.color, my_extended_material.param1, (t_sin + 1.) / 2.);
+    //out.color = mix(out.color, my_extended_material.param1, (t_sin + 1.) / 2.);
 
     return out;
 }

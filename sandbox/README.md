@@ -22,7 +22,8 @@ A mesh is displayed to which the fragment shader is applied.
 
 ## TODO
 
-- Allow the window to be resized
+- ALWAYS:
+  - Separate each features to libs
 - Add some inputs to the fragment shader
   - float values
   - textures
