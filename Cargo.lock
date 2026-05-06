@@ -3576,6 +3576,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "my_meshes"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
 name = "myshaderlib"
 version = "0.1.0"
 dependencies = [
@@ -4675,6 +4682,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "blake3",
+ "my_meshes",
  "myshaderlib",
 ]
 

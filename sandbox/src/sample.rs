@@ -4,10 +4,8 @@ use bevy::{
     color::palettes::css, pbr::ExtendedMaterial, prelude::*, render::render_resource::AsBindGroup,
 };
 
-use crate::{
-    meshes,
-    sample::extended_material::{MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension},
-};
+use my_meshes as meshes;
+use crate::sample::extended_material::{MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension};
 
 mod extended_material;
 

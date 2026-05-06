@@ -4,7 +4,6 @@ mod background;
 mod camera;
 mod config;
 mod light;
-mod meshes;
 mod sample;
 
 use background::BackgroundState;
