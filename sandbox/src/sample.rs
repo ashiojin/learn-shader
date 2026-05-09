@@ -4,7 +4,7 @@ use bevy::{
     color::palettes::css, pbr::ExtendedMaterial, prelude::*, render::render_resource::AsBindGroup,
 };
 
-use my_meshes as meshes;
+use my_meshes::{self as meshes, Belt};
 use crate::sample::extended_material::{MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension};
 
 mod extended_material;
@@ -23,6 +23,7 @@ pub enum SampleType {
     Sphere,
     Ring,
     SphericalZone,
+    Belt,
 }
 impl SampleType {
     pub fn get_next(&self) -> Self {
@@ -33,7 +34,8 @@ impl SampleType {
             SampleType::Cone => SampleType::Sphere,
             SampleType::Sphere => SampleType::Ring,
             SampleType::Ring => SampleType::SphericalZone,
-            SampleType::SphericalZone => SampleType::Plane,
+            SampleType::SphericalZone => SampleType::Belt,
+            SampleType::Belt => SampleType::Plane,
         }
     }
 
@@ -52,6 +54,16 @@ impl SampleType {
                     .with_circle_resolution(64)
                     .with_angle_resolution(8)
                     .with_double_sided(true)
+                    .mesh()
+                    .into()
+            }
+            SampleType::Belt => {
+                let start_point_pos = Vec3::new(-1.0, 0.0, 0.0);
+                let end_point_pos = Vec3::new(0.0, 1.0, 0.0);
+                let start_point_dir = Dir3::new(start_point_pos).unwrap();
+                let end_point_dir = Dir3::new(end_point_pos).unwrap();
+                Belt::new(start_point_pos, start_point_dir, end_point_pos, end_point_dir, 0.25)
+                    .with_resolution(64)
                     .mesh()
                     .into()
             }
