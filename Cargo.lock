@@ -4694,6 +4694,8 @@ dependencies = [
  "blake3",
  "my_meshes",
  "myshaderlib",
+ "rand",
+ "rand_chacha",
 ]
 
 [[package]]

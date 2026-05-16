@@ -7,3 +7,5 @@ members = ["animated"
 bevy = { version = "0.18", default-features=false }
 bytemuck = { version = "1.24" }
 nonmax = { version = "0.5" }
+rand = { version ="0.9.0" }
+rand_chacha = { version = "0.9.0" }

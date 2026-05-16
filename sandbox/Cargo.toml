@@ -8,6 +8,9 @@ bevy = { workspace = true, features=["3d", "dev"] }
 myshaderlib = { path = "../myshaderlib" }
 my_meshes = { path = "../my_meshes" }
 
+rand = { workspace = true }
+rand_chacha = { workspace = true }
+
 # ---
 # Workaround : see https://github.com/bevyengine/bevy/issues/10425
 [dependencies.blake3]

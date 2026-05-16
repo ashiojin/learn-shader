@@ -4,19 +4,22 @@ mod background;
 mod camera;
 mod config;
 mod light;
+mod random;
 mod sample;
 
 use background::BackgroundState;
 use camera::SatelliteCamera;
+use my_meshes::FlatRing3d;
 
 use crate::{
     background::change_background,
     camera::{ZoomDirection, update_camera_follower},
     config::{ConfigState, draw_gizmo},
     light::{LightState, change_light, update_rotate_light},
+    random::RandomPlugin,
     sample::{
-        CustomMaterial, MyExtendedMaterialPlugin, SampleState, refresh_sample_mesh,
-        insert_sample_material, reload_shaders,
+        CustomMaterial, MyExtendedMaterialPlugin, SampleState, despawn_expired,
+        insert_sample_material, refresh_sample_mesh, reload_shaders, spawn_mesh_from_emitter,
     },
 };
 
@@ -46,6 +49,7 @@ fn main() {
             myshaderlib::MyShaderLibPlugin,
             MaterialPlugin::<CustomMaterial>::default(),
             MyExtendedMaterialPlugin::default(),
+            RandomPlugin,
         ))
         .insert_resource(SampleState::default())
         .insert_resource(ConfigState::default())
@@ -60,6 +64,14 @@ fn main() {
             refresh_sample_mesh.run_if(resource_changed::<SampleState>),
         )
         .add_systems(Update, insert_sample_material)
+        .add_systems(
+            Update,
+            (
+                despawn_expired,
+                spawn_mesh_from_emitter::<Cuboid, FlatRing3d>,
+            )
+                .chain(),
+        )
         .add_systems(
             Update,
             change_background.run_if(resource_changed::<BackgroundState>),
