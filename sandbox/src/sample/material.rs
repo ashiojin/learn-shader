@@ -2,12 +2,15 @@ use bevy::{
     color::palettes::css, pbr::ExtendedMaterial, prelude::*, render::render_resource::AsBindGroup,
 };
 
-use crate::sample::extended_material::{MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension};
 use super::state::SampleMesh;
-use super::state::{SampleState, SampleMaterialType};
+use super::state::{SampleMaterialType, SampleState};
+use crate::sample::extended_material::{MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension};
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
-pub struct CustomMaterial {}
+pub struct CustomMaterial {
+    #[uniform(129)]
+    spawned_at: f32,
+}
 
 pub const SHADER_ASSET_PATH: &str = "shaders/fragment.wgsl";
 impl Material for CustomMaterial {
@@ -29,6 +32,7 @@ pub fn insert_sample_material(
     asset_server: Res<AssetServer>,
     sample_state: Res<SampleState>,
     q_sample_meshes: Query<Entity, Added<SampleMesh>>,
+    time: Res<Time>,
 ) {
     for entity in q_sample_meshes.iter() {
         // add material
@@ -36,16 +40,22 @@ pub fn insert_sample_material(
             SampleMaterialType::User => {
                 commands
                     .entity(entity)
-                    .try_insert(MeshMaterial3d(materials.add(CustomMaterial {})));
+                    .try_insert(MeshMaterial3d(materials.add(CustomMaterial {
+                        spawned_at: time.elapsed_secs(),
+                    })));
             }
             SampleMaterialType::UserExtended => {
                 let base_material = StandardMaterial {
                     base_color: css::LIGHT_GRAY.into(),
+                    alpha_mode: AlphaMode::Blend, // TODO:
                     ..Default::default()
                 };
                 let material = ExtendedMaterial {
                     base: base_material,
-                    extension: MyExtension::new(LinearRgba::new(1.0, 0.0, 0.0, 0.25)),
+                    extension: MyExtension::new(
+                        LinearRgba::new(1.0, 0.0, 0.0, 0.25),
+                        time.elapsed_secs(),
+                    ),
                 };
                 commands
                     .entity(entity)

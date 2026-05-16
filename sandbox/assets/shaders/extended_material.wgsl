@@ -6,6 +6,7 @@
 }
 
 #import bevy_pbr::{
+    pbr_types,
     mesh_bindings::mesh,
     mesh_functions,
     skinning,
@@ -23,7 +24,7 @@ fn shake_xy(pos: vec4<f32>) -> vec4<f32> {
 
     // position n is random ([-a, a], [-a, a]) where a is the shake_amount
 
-    let t = globals.time;
+    let t = globals.time - spawned_at;
 
     let shake_amount = 0.1;
     if fract(t) < 0.5 {
@@ -154,6 +155,9 @@ struct MyExtendedMaterial {
 @group(#{MATERIAL_BIND_GROUP}) @binding(128)
 var<uniform> my_extended_material: MyExtendedMaterial;
 
+@group(#{MATERIAL_BIND_GROUP}) @binding(129)
+var<uniform> spawned_at: f32;
+
 @fragment
 fn fragment(
     in: VertexOutput,
@@ -163,19 +167,29 @@ fn fragment(
     var pbr_input = pbr_input_from_standard_material(in, is_front);
     let v = cross(pbr_input.V, pbr_input.N);
     let lv = length(v);
-    let l = smoothstep(0.5, 1.0, lv);
+    let l = smoothstep(0.4, 1.0, lv);
 
-    pbr_input.material.base_color = vec4(0.8, 0.7, 0.1, 1.0);
+    let elapsed = globals.time - spawned_at;
+    let mix_d = smoothstep(0.4, 1.0, elapsed * 0.8);
+    let color1 = vec4(1.0, 0.1, 0.1, 1.0);
+    let color2 = vec4(1.4, 1.0, 1.0, 0.01);
+    let color = mix(color1, color2, mix_d);
+
+    // let alpha_flags = pbr_input.material.flags & pbr_types::STANDARD_MATERIAL_FLAGS_ALPHA_MODE_RESERVED_BITS;
+    // let is_opaque = alpha_flags == pbr_types::STANDARD_MATERIAL_FLAGS_ALPHA_MODE_OPAQUE;
+    // let is_blend = alpha_flags == pbr_types::STANDARD_MATERIAL_FLAGS_ALPHA_MODE_BLEND;
+
 
     //pbr_input.material.emissive = mix(pbr_input.material.emissive, vec4(1.0, 1.0, 0.0, 0.0), l);
-    pbr_input.material.base_color = alpha_discard(pbr_input.material, pbr_input.material.base_color);
+    pbr_input.material.base_color = alpha_discard(pbr_input.material, color);
+
 
     var out: FragmentOutput;
     out.color = apply_pbr_lighting(pbr_input);
 
     out.color = main_pass_post_lighting_processing(pbr_input, out.color);
 
-    out.color.a = l;
+    out.color.a *= l; // fade out when view direction is close to normal direction
 
     //out.color = mix(out.color, my_extended_material.param1, (t_sin + 1.) / 2.);
 

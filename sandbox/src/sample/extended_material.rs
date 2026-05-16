@@ -8,11 +8,15 @@ use bevy::{
 pub struct MyExtension {
     #[uniform(128)]
     pub param1: LinearRgba,
+
+    #[uniform(129)]
+    pub spawned_at: f32,
 }
 impl MyExtension {
-    pub fn new(param1: LinearRgba) -> Self {
+    pub fn new(param1: LinearRgba, spawned_at: f32) -> Self {
         Self {
             param1,
+            spawned_at,
         }
     }
 }
@@ -30,6 +34,7 @@ impl MaterialExtension for MyExtension {
     fn vertex_shader() -> bevy::shader::ShaderRef {
         MY_EXTENSION_SHADER_PATH.into()
     }
+
 }
 
 pub type MyExtendedMaterial = ExtendedMaterial<StandardMaterial, MyExtension>;

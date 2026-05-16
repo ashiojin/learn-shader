@@ -12,6 +12,9 @@
 
 #import simplex_noise_f32::{snoise3D}
 
+@group(#{MATERIAL_BIND_GROUP}) @binding(129)
+var<uniform> spawned_at: f32;
+
 fn block_noise(uv: vec2<f32>) -> vec3<f32> {
     let st = uv * 16.0;
 
@@ -89,6 +92,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
 
     //let n = 0.0;
     let o = in.uv;
+    let elapsed = globals.time - spawned_at;
     let t = fract(globals.time);
     let p = vec2(o.x + 0.01*sin(o.y * 2.*PI), pow(o.y, 0.42));
     let n_move =  vec2(0.0, globals.time * 5.5);
@@ -102,7 +106,8 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let color_base = vec4(1.0, 0.0, 0.0, 1.0);
     let color_half = vec4(1.0, 0.8, 0.1, 1.0);
     let color_end  = vec4(1.0, 1.0, 0.5, 0.0);
-    let th_half = 0.5;
+    // let th_half = 0.5;
+    let th_half = 0.1 + smoothstep(0.3, 1.0, elapsed) * (0.9 - 0.1);
     color = mix(color_base, color_half, smoothstep(0.0, th_half, d + n * 0.1));
     color = mix(color, color_end, smoothstep(th_half, 1.0, d + n * 0.1));
     // if d < th_half {
