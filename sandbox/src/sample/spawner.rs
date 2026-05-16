@@ -1,5 +1,5 @@
 use crate::sample::emitter::{
-    MeshLifetimePattern, RandomPositionEmitter, SpawnPattern,
+    MeshLifetimePattern, RandomPositionEmitter, SpawnPattern, SingleMeshEmitter,
 };
 use bevy::prelude::*;
 use my_meshes::{self as meshes, Belt};
@@ -16,54 +16,54 @@ pub fn spawn_sample(
     match sample_type {
         SampleType::Plane => {
             commands.spawn((
-                Mesh3d(meshes.add(Plane3d::new(Vec3::Z, Vec2::new(1.0, 1.0)))),
+                SingleMeshEmitter { mesh: meshes.add(Plane3d::new(Vec3::Z, Vec2::new(1.0, 1.0))) },
                 Transform::from_xyz(0., 0., 0.),
-                SampleMesh,
+                SampleEmitter,
             ));
         }
         SampleType::Cube => {
             commands.spawn((
-                Mesh3d(meshes.add(Cuboid::from_length(1.0).mesh())),
+                SingleMeshEmitter { mesh: meshes.add(Cuboid::from_length(1.0).mesh()) },
                 Transform::from_xyz(0., 0., 0.),
-                SampleMesh,
+                SampleEmitter,
             ));
         }
         SampleType::Cone => {
             commands.spawn((
-                Mesh3d(meshes.add(Cone::new(0.5, 1.0).mesh())),
+                SingleMeshEmitter { mesh: meshes.add(Cone::new(0.5, 1.0).mesh()) },
                 Transform::from_xyz(0., 0., 0.),
-                SampleMesh,
+                SampleEmitter,
             ));
         }
         SampleType::Sphere => {
             commands.spawn((
-                Mesh3d(meshes.add(Sphere::new(0.5).mesh())),
+                SingleMeshEmitter { mesh: meshes.add(Sphere::new(0.5).mesh()) },
                 Transform::from_xyz(0., 0., 0.),
-                SampleMesh,
+                SampleEmitter,
             ));
         }
         SampleType::Ring => {
             commands.spawn((
-                Mesh3d(meshes.add(
+                SingleMeshEmitter { mesh: meshes.add(
                     meshes::FlatRing3d::new(Dir3::Z, 1.0, 0.25)
                         .with_resolution(32)
                         .mesh(),
-                )),
+                ) },
                 Transform::from_xyz(0., 0., 0.),
-                SampleMesh,
+                SampleEmitter,
             ));
         }
         SampleType::SphericalZone => {
             commands.spawn((
-                Mesh3d(meshes.add(
+                SingleMeshEmitter { mesh: meshes.add(
                     meshes::SphericalZone::new(0.5, 7. * PI / 16.0, 9. * PI / 16.0)
                         .with_circle_resolution(64)
                         .with_angle_resolution(8)
                         .with_double_sided(true)
                         .mesh(),
-                )),
+                ) },
                 Transform::from_xyz(0., 0., 0.),
-                SampleMesh,
+                SampleEmitter,
             ));
         }
         SampleType::Belt => {
@@ -72,7 +72,7 @@ pub fn spawn_sample(
             let start_point_dir = Dir3::new(start_point_pos).unwrap();
             let end_point_dir = Dir3::new(end_point_pos).unwrap();
             commands.spawn((
-                Mesh3d(meshes.add(
+                SingleMeshEmitter { mesh: meshes.add(
                     Belt::new(
                         start_point_pos,
                         start_point_dir,
@@ -82,9 +82,9 @@ pub fn spawn_sample(
                     )
                     .with_resolution(64)
                     .mesh(),
-                )),
+                ) },
                 Transform::from_xyz(0., 0., 0.),
-                SampleMesh,
+                SampleEmitter,
             ));
         }
         SampleType::Emitter1 => {

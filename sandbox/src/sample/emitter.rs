@@ -5,6 +5,26 @@ use crate::random::RandomSource;
 use super::state::SampleMesh;
 
 #[derive(Component, Debug, Clone)]
+pub struct SingleMeshEmitter {
+    pub mesh: Handle<Mesh>,
+}
+
+pub fn spawn_single_mesh(
+    mut commands: Commands,
+    query: Query<(Entity, &SingleMeshEmitter, &Transform), Added<SingleMeshEmitter>>,
+) {
+    for (entity, emitter, _transform) in query.iter() {
+        commands.entity(entity).with_children(|parent| {
+            parent.spawn((
+                Mesh3d(emitter.mesh.clone()),
+                Transform::default(),
+                SampleMesh,
+            ));
+        });
+    }
+}
+
+#[derive(Component, Debug, Clone)]
 pub struct RandomPositionEmitter<SS: ShapeSample + Clone + 'static, M: Meshable + 'static> {
     /// The shape sample to use for generating random positions.
     pub shape_sample: SS,

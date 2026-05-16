@@ -3,7 +3,7 @@ use bevy::{
 };
 
 use crate::sample::extended_material::{MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension};
-use super::mesh::SampleMesh;
+use super::state::SampleMesh;
 use super::state::{SampleState, SampleMaterialType};
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
