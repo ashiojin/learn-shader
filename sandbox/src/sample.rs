@@ -99,60 +99,66 @@ impl SampleState {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn change_sample(
+pub fn refresh_sample_mesh(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
+    sample_state: Res<SampleState>,
+    q_sample_meshes: Query<Entity, With<SampleMesh>>,
+) {
+    // 1. despawn old sample
+    for entity in q_sample_meshes.iter() {
+        commands.entity(entity).despawn();
+    }
+
+    // 2. spawn new sample
+    commands.spawn((
+        Mesh3d(meshes.add(sample_state.sample_type.mesh())),
+        Transform::from_xyz(0., 0., 0.),
+        SampleMesh,
+    ));
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn insert_sample_material(
+    mut commands: Commands,
     mut materials: ResMut<Assets<CustomMaterial>>,
     mut extended_materials: ResMut<Assets<MyExtendedMaterial>>,
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
     sample_state: Res<SampleState>,
-    q_sample_meshes: Query<Entity, With<SampleMesh>>,
+    q_sample_meshes: Query<Entity, Added<SampleMesh>>,
 ) {
-    // 1. despawn old sample
-    // 2. spawn new sample with new material
     for entity in q_sample_meshes.iter() {
-        commands.entity(entity).despawn();
-    }
-
-    let entity = commands
-        .spawn((
-            Mesh3d(meshes.add(sample_state.sample_type.mesh())),
-            Transform::from_xyz(0., 0., 0.),
-            SampleMesh,
-        ))
-        .id();
-
-    // add material
-    match sample_state.material_type {
-        SampleMaterialType::User => {
-            commands
-                .entity(entity)
-                .insert(MeshMaterial3d(materials.add(CustomMaterial {})));
-        }
-        SampleMaterialType::UserExtended => {
-            let base_material = StandardMaterial {
-                base_color: css::LIGHT_GRAY.into(),
-                ..Default::default()
-            };
-            let material = ExtendedMaterial {
-                base: base_material,
-                extension: MyExtension::new(LinearRgba::new(1.0, 0.0, 0.0, 0.25)),
-            };
-            commands
-                .entity(entity)
-                .insert(MeshMaterial3d(extended_materials.add(material)));
-        }
-        SampleMaterialType::UvTest1024 => {
-            let texture_handle = asset_server.load(myshaderlib::path_to_uv_test1024());
-            let material = StandardMaterial {
-                base_color_texture: Some(texture_handle),
-                ..Default::default()
-            };
-            commands
-                .entity(entity)
-                .insert(MeshMaterial3d(standard_materials.add(material)));
+        // add material
+        match sample_state.material_type {
+            SampleMaterialType::User => {
+                commands
+                    .entity(entity)
+                    .insert(MeshMaterial3d(materials.add(CustomMaterial {})));
+            }
+            SampleMaterialType::UserExtended => {
+                let base_material = StandardMaterial {
+                    base_color: css::LIGHT_GRAY.into(),
+                    ..Default::default()
+                };
+                let material = ExtendedMaterial {
+                    base: base_material,
+                    extension: MyExtension::new(LinearRgba::new(1.0, 0.0, 0.0, 0.25)),
+                };
+                commands
+                    .entity(entity)
+                    .insert(MeshMaterial3d(extended_materials.add(material)));
+            }
+            SampleMaterialType::UvTest1024 => {
+                let texture_handle = asset_server.load(myshaderlib::path_to_uv_test1024());
+                let material = StandardMaterial {
+                    base_color_texture: Some(texture_handle),
+                    ..Default::default()
+                };
+                commands
+                    .entity(entity)
+                    .insert(MeshMaterial3d(standard_materials.add(material)));
+            }
         }
     }
 }

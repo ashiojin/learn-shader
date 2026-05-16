@@ -15,7 +15,8 @@ use crate::{
     config::{ConfigState, draw_gizmo},
     light::{LightState, change_light, update_rotate_light},
     sample::{
-        CustomMaterial, MyExtendedMaterialPlugin, SampleState, change_sample, reload_shaders,
+        CustomMaterial, MyExtendedMaterialPlugin, SampleState, refresh_sample_mesh,
+        insert_sample_material, reload_shaders,
     },
 };
 
@@ -56,8 +57,9 @@ fn main() {
         .add_systems(Update, update_rotate_light)
         .add_systems(
             Update,
-            change_sample.run_if(resource_changed::<SampleState>),
+            refresh_sample_mesh.run_if(resource_changed::<SampleState>),
         )
+        .add_systems(Update, insert_sample_material)
         .add_systems(
             Update,
             change_background.run_if(resource_changed::<BackgroundState>),
