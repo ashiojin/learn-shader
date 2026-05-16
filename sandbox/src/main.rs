@@ -9,7 +9,6 @@ mod sample;
 
 use background::BackgroundState;
 use camera::SatelliteCamera;
-use my_meshes::FlatRing3d;
 
 use crate::{
     background::change_background,
@@ -17,10 +16,7 @@ use crate::{
     config::{ConfigState, draw_gizmo},
     light::{LightState, change_light, update_rotate_light},
     random::RandomPlugin,
-    sample::{
-        CustomMaterial, MyExtendedMaterialPlugin, SampleState, despawn_expired,
-        insert_sample_material, refresh_sample_mesh, reload_shaders, spawn_mesh_from_emitter,
-    },
+    sample::{SamplePlugin, SampleState, reload_shaders},
 };
 
 fn main() {
@@ -47,11 +43,9 @@ fn main() {
                     ..default()
                 }),
             myshaderlib::MyShaderLibPlugin,
-            MaterialPlugin::<CustomMaterial>::default(),
-            MyExtendedMaterialPlugin::default(),
             RandomPlugin,
+            SamplePlugin,
         ))
-        .insert_resource(SampleState::default())
         .insert_resource(ConfigState::default())
         .insert_resource(BackgroundState::default())
         .insert_resource(LightState::default())
@@ -59,19 +53,6 @@ fn main() {
         .add_systems(Update, (react_to_keyevent, draw_gizmo))
         .add_systems(Update, update_camera_follower)
         .add_systems(Update, update_rotate_light)
-        .add_systems(
-            Update,
-            refresh_sample_mesh.run_if(resource_changed::<SampleState>),
-        )
-        .add_systems(Update, insert_sample_material)
-        .add_systems(
-            Update,
-            (
-                despawn_expired,
-                spawn_mesh_from_emitter::<Cuboid, FlatRing3d>,
-            )
-                .chain(),
-        )
         .add_systems(
             Update,
             change_background.run_if(resource_changed::<BackgroundState>),

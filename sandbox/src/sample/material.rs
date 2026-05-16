@@ -4,25 +4,7 @@ use bevy::{
 
 use crate::sample::extended_material::{MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension};
 use super::mesh::SampleMesh;
-use super::state::SampleState;
-
-#[derive(Debug, Default, Eq, PartialEq)]
-pub enum SampleMaterialType {
-    #[default]
-    User,
-    UserExtended,
-    UvTest1024,
-}
-
-impl SampleMaterialType {
-    pub fn get_next(&self) -> Self {
-        match self {
-            SampleMaterialType::User => SampleMaterialType::UvTest1024,
-            SampleMaterialType::UvTest1024 => SampleMaterialType::UserExtended,
-            SampleMaterialType::UserExtended => SampleMaterialType::User,
-        }
-    }
-}
+use super::state::{SampleState, SampleMaterialType};
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 pub struct CustomMaterial {}

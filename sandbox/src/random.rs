@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use rand::{SeedableRng, distr::Distribution};
+use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 
 pub struct RandomPlugin;

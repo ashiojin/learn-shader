@@ -1,6 +1,50 @@
 use bevy::prelude::*;
-use super::mesh::SampleType;
-use super::material::SampleMaterialType;
+
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
+pub enum SampleType {
+    #[default]
+    Plane,
+    Cube,
+    Cone,
+    Sphere,
+    Ring,
+    SphericalZone,
+    Belt,
+    Emitter1,
+}
+
+impl SampleType {
+    pub fn get_next(&self) -> Self {
+        match self {
+            SampleType::Plane => SampleType::Cube,
+            SampleType::Cube => SampleType::Cone,
+            SampleType::Cone => SampleType::Sphere,
+            SampleType::Sphere => SampleType::Ring,
+            SampleType::Ring => SampleType::SphericalZone,
+            SampleType::SphericalZone => SampleType::Belt,
+            SampleType::Belt => SampleType::Emitter1,
+            SampleType::Emitter1 => SampleType::Plane,
+        }
+    }
+}
+
+#[derive(Debug, Default, Eq, PartialEq, Clone, Copy)]
+pub enum SampleMaterialType {
+    #[default]
+    User,
+    UserExtended,
+    UvTest1024,
+}
+
+impl SampleMaterialType {
+    pub fn get_next(&self) -> Self {
+        match self {
+            SampleMaterialType::User => SampleMaterialType::UvTest1024,
+            SampleMaterialType::UvTest1024 => SampleMaterialType::UserExtended,
+            SampleMaterialType::UserExtended => SampleMaterialType::User,
+        }
+    }
+}
 
 #[derive(Resource, Debug, Default)]
 pub struct SampleState {
@@ -15,8 +59,10 @@ impl SampleState {
     pub fn next_material(&mut self) {
         self.material_type = self.material_type.get_next();
     }
-
-    pub fn spawn(&self, commands: &mut Commands, meshes: &mut ResMut<Assets<Mesh>>) {
-        self.sample_type.spawn(commands, meshes);
-    }
 }
+
+#[derive(Component, Debug, Clone)]
+pub struct SampleMesh;
+
+#[derive(Component, Debug)]
+pub struct SampleEmitter;

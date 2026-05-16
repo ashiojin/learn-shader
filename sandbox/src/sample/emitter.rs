@@ -1,12 +1,8 @@
 use bevy::prelude::*;
 use rand::distr::Distribution;
 
-use crate::{random::RandomSource, sample::SampleMesh};
-
-
-#[derive(Component, Debug)]
-pub struct SampleEmitter;
-
+use crate::random::RandomSource;
+use super::state::SampleMesh;
 
 #[derive(Component, Debug, Clone)]
 pub struct RandomPositionEmitter<SS: ShapeSample + Clone + 'static, M: Meshable + 'static> {
@@ -81,7 +77,7 @@ where
                         SampleMesh,
                     )).id();
 
-                    info!("Spawned mesh entity {:?} at position {:?}", mesh_entity, pos);
+                    debug!("Spawned mesh entity {:?} at position {:?}", mesh_entity, pos);
                 }
             }
         }
