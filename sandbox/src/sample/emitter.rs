@@ -13,14 +13,12 @@ pub fn spawn_single_mesh(
     mut commands: Commands,
     query: Query<(Entity, &SingleMeshEmitter, &Transform), Added<SingleMeshEmitter>>,
 ) {
-    for (entity, emitter, _transform) in query.iter() {
-        commands.entity(entity).with_children(|parent| {
-            parent.spawn((
-                Mesh3d(emitter.mesh.clone()),
-                Transform::default(),
-                SampleMesh,
-            ));
-        });
+    for (_entity, emitter, transform) in query.iter() {
+        commands.spawn((
+            Mesh3d(emitter.mesh.clone()),
+            *transform,
+            SampleMesh,
+        ));
     }
 }
 
