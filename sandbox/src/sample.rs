@@ -74,7 +74,6 @@ impl SampleType {
 #[derive(Resource, Debug, Default)]
 pub struct SampleState {
     sample_type: SampleType,
-    entity: Option<Entity>,
 
     material_type: SampleMaterialType,
 }
@@ -100,6 +99,7 @@ impl SampleState {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn change_sample(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -107,11 +107,12 @@ pub fn change_sample(
     mut extended_materials: ResMut<Assets<MyExtendedMaterial>>,
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
-    mut sample_state: ResMut<SampleState>,
+    sample_state: Res<SampleState>,
+    q_sample_meshes: Query<Entity, With<SampleMesh>>,
 ) {
     // 1. despawn old sample
     // 2. spawn new sample with new material
-    if let Some(entity) = sample_state.entity {
+    for entity in q_sample_meshes.iter() {
         commands.entity(entity).despawn();
     }
 
@@ -154,8 +155,6 @@ pub fn change_sample(
                 .insert(MeshMaterial3d(standard_materials.add(material)));
         }
     }
-
-    sample_state.entity = Some(entity);
 }
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
