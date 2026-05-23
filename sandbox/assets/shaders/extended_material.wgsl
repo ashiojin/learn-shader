@@ -171,14 +171,17 @@ fn fragment(
 
     let elapsed = globals.time - spawned_at;
     let mix_d = smoothstep(0.4, 1.0, elapsed * 0.8);
-    let color1 = vec4(1.0, 0.1, 0.1, 1.0);
+    //let mix_d = 0.0;
+
+    //let color1 = vec4(1.0, 0.1, 0.1, 1.0);
+    let color1 = pbr_input.material.base_color;
     let color2 = vec4(1.4, 1.0, 1.0, 0.01);
     let color = mix(color1, color2, mix_d);
 
-    // let alpha_flags = pbr_input.material.flags & pbr_types::STANDARD_MATERIAL_FLAGS_ALPHA_MODE_RESERVED_BITS;
-    // let is_opaque = alpha_flags == pbr_types::STANDARD_MATERIAL_FLAGS_ALPHA_MODE_OPAQUE;
-    // let is_blend = alpha_flags == pbr_types::STANDARD_MATERIAL_FLAGS_ALPHA_MODE_BLEND;
 
+    // fix alpha mode: It seems that `MyExtention::alpha_mode()` is not working for flags
+    pbr_input.material.flags &= ~pbr_types::STANDARD_MATERIAL_FLAGS_ALPHA_MODE_RESERVED_BITS; // clear alpha mode bits
+    pbr_input.material.flags |= pbr_types::STANDARD_MATERIAL_FLAGS_ALPHA_MODE_BLEND;
 
     //pbr_input.material.emissive = mix(pbr_input.material.emissive, vec4(1.0, 1.0, 0.0, 0.0), l);
     pbr_input.material.base_color = alpha_discard(pbr_input.material, color);
@@ -192,6 +195,21 @@ fn fragment(
     out.color.a *= l; // fade out when view direction is close to normal direction
 
     //out.color = mix(out.color, my_extended_material.param1, (t_sin + 1.) / 2.);
+
+    let alpha_flags = pbr_input.material.flags & pbr_types::STANDARD_MATERIAL_FLAGS_ALPHA_MODE_RESERVED_BITS;
+    let is_opaque = alpha_flags == pbr_types::STANDARD_MATERIAL_FLAGS_ALPHA_MODE_OPAQUE;
+    let is_blend = alpha_flags == pbr_types::STANDARD_MATERIAL_FLAGS_ALPHA_MODE_BLEND;
+
+    if is_opaque {
+        // ILLIGAL
+        out.color = vec4(0.0, 1.0, 0.0, 1.0);
+    } else if (is_blend) {
+        // keep alpha as is
+    } else {
+        // ILLIGAL
+        out.color = vec4(0.0, 0.0, 1.0, 1.0);
+    }
+
 
     return out;
 }

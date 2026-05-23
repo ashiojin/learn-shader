@@ -4,10 +4,12 @@ A Sanxbox to write a fragment shader.
 
 ## Usage
 
-This app uses the fragment shaders:
+This app shows a mesh with a shader:
 
 - `assets/shaders/fragment.wgsl`
+  - fragment shader only
 - `assets/shaders/extended_material.wgsl`
+  - vertex shader and fragment shader
 
 A mesh is displayed to which the fragment shader is applied.
 
@@ -18,7 +20,10 @@ A mesh is displayed to which the fragment shader is applied.
 - 0: Show a cross at the origin
 - b: Change the background
 - l: Change the light
-- 1: Change the material (fragment.wgsl <-> uv test texture)
+- 1: Change the material
+  - fragment.wgsl
+  - UV texture
+  - extended_material.wgsl
 
 ## TODO
 

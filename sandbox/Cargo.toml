@@ -10,6 +10,10 @@ my_meshes = { path = "../my_meshes" }
 
 rand = { workspace = true }
 rand_chacha = { workspace = true }
+gltf = { workspace = true }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 # ---
 # Workaround : see https://github.com/bevyengine/bevy/issues/10425

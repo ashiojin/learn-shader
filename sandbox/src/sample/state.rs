@@ -3,6 +3,7 @@ use bevy::prelude::*;
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub enum SampleType {
     #[default]
+    Saru,
     Plane,
     Cube,
     Cone,
@@ -16,6 +17,7 @@ pub enum SampleType {
 impl SampleType {
     pub fn get_next(&self) -> Self {
         match self {
+            SampleType::Saru => SampleType::Plane,
             SampleType::Plane => SampleType::Cube,
             SampleType::Cube => SampleType::Cone,
             SampleType::Cone => SampleType::Sphere,
@@ -23,7 +25,7 @@ impl SampleType {
             SampleType::Ring => SampleType::SphericalZone,
             SampleType::SphericalZone => SampleType::Belt,
             SampleType::Belt => SampleType::Emitter1,
-            SampleType::Emitter1 => SampleType::Plane,
+            SampleType::Emitter1 => SampleType::Saru,
         }
     }
 }
@@ -63,6 +65,9 @@ impl SampleState {
 
 #[derive(Component, Debug, Clone)]
 pub struct SampleMesh;
+
+#[derive(Component, Debug, Clone)]
+pub struct SampleScene;
 
 #[derive(Component, Debug)]
 pub struct SampleEmitter;
