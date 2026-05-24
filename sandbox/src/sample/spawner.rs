@@ -1,15 +1,12 @@
-use crate::sample::{
-    emitter::{
-        MeshLifetimePattern, RandomPositionEmitter, SingleGltfEmitter, SingleMeshEmitter,
-        SpawnPattern,
-    },
-    state::SampleScene,
+use crate::sample::emitter::{
+    MeshLifetimePattern, RandomPositionEmitter, SingleGltfEmitter, SingleMeshEmitter,
+    SpawnPattern,
 };
 use bevy::prelude::*;
 use my_meshes::{self as meshes, Belt};
 use std::f32::consts::PI;
 
-pub use super::state::SampleMesh;
+pub use super::state::SampleModel;
 use super::state::{SampleEmitter, SampleState, SampleType};
 
 pub fn spawn_sample(sample_type: &SampleType, commands: &mut Commands, meshes: &mut Assets<Mesh>) {
@@ -131,15 +128,11 @@ pub fn refresh_sample_mesh(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     sample_state: Res<SampleState>,
-    q_sample_meshes: Query<Entity, With<SampleMesh>>,
-    q_sample_scenes: Query<Entity, With<SampleScene>>,
+    q_sample_models: Query<Entity, With<SampleModel>>,
     q_sample_emitters: Query<Entity, With<SampleEmitter>>,
 ) {
     // 1. despawn old sample
-    for entity in q_sample_meshes.iter() {
-        commands.entity(entity).despawn();
-    }
-    for entity in q_sample_scenes.iter() {
+    for entity in q_sample_models.iter() {
         commands.entity(entity).despawn();
     }
     for entity in q_sample_emitters.iter() {

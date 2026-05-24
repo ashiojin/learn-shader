@@ -3,7 +3,7 @@ use bevy::{
     color::palettes::css, pbr::ExtendedMaterial, prelude::*, render::render_resource::AsBindGroup,
 };
 
-use super::state::SampleMesh;
+use super::state::SampleModel;
 use super::state::{SampleMaterialType, SampleState};
 use crate::sample::extended_material::{MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension};
 
@@ -32,10 +32,13 @@ pub fn insert_sample_material(
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
     sample_state: Res<SampleState>,
-    q_sample_meshes: Query<Entity, Added<SampleMesh>>,
+    q_sample_models: Query<(Entity, &SampleModel), Added<SampleModel>>,
     time: Res<Time>,
 ) {
-    for entity in q_sample_meshes.iter() {
+    for (entity, model) in q_sample_models.iter() {
+        if *model != SampleModel::Mesh {
+            continue;
+        }
         // add material
         match sample_state.material_type {
             SampleMaterialType::User => {

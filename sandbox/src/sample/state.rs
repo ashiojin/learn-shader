@@ -63,11 +63,11 @@ impl SampleState {
     }
 }
 
-#[derive(Component, Debug, Clone)]
-pub struct SampleMesh;
-
-#[derive(Component, Debug, Clone)]
-pub struct SampleScene;
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SampleModel {
+    Mesh,
+    Scene,
+}
 
 #[derive(Component, Debug)]
 pub struct SampleEmitter;

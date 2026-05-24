@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 use rand::distr::Distribution;
 
-use super::state::SampleMesh;
-use crate::{random::RandomSource, sample::state::SampleScene};
+use super::state::SampleModel;
+use crate::{random::RandomSource};
 
 #[derive(Component, Debug, Clone)]
 pub struct SingleMeshEmitter {
@@ -14,7 +14,7 @@ pub fn spawn_single_mesh(
     query: Query<(Entity, &SingleMeshEmitter, &Transform), Added<SingleMeshEmitter>>,
 ) {
     for (_entity, emitter, transform) in query.iter() {
-        commands.spawn((Mesh3d(emitter.mesh.clone()), *transform, SampleMesh));
+        commands.spawn((Mesh3d(emitter.mesh.clone()), *transform, SampleModel::Mesh));
     }
 }
 
@@ -93,7 +93,7 @@ pub fn spawn_mesh_from_emitter<SS, M>(
                                 },
                                 spwawned_at: time.elapsed_secs(),
                             },
-                            SampleMesh,
+                            SampleModel::Mesh,
                         ))
                         .id();
 
@@ -143,7 +143,7 @@ pub fn spawn_single_gltf_scene(
                 emitter.gltf_path.clone()),
             )),
             *transform,
-            SampleScene,
+            SampleModel::Scene,
         ));
     }
 }

@@ -9,7 +9,7 @@ pub mod state;
 pub use emitter::{despawn_expired, spawn_mesh_from_emitter, spawn_single_mesh};
 pub use material::{CustomMaterial, insert_sample_material, reload_shaders};
 pub use spawner::refresh_sample_mesh;
-pub use state::{SampleMesh, SampleState};
+pub use state::{SampleModel, SampleState};
 
 use my_meshes::FlatRing3d;
 

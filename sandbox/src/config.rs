@@ -1,6 +1,6 @@
 use bevy::{color::palettes::css, prelude::*};
 
-use crate::sample::SampleMesh;
+use crate::sample::SampleModel;
 
 #[derive(Resource, Debug, Default)]
 pub struct ConfigState {
@@ -16,10 +16,10 @@ impl ConfigState {
 pub fn draw_gizmo(
     mut gizmos: Gizmos,
     other_state: Res<ConfigState>,
-    sample_mesh: Query<&Transform, With<SampleMesh>>,
+    sample_model: Query<&Transform, With<SampleModel>>,
 ) {
     if other_state.gizmo_cross {
-        for transform in sample_mesh.iter() {
+        for transform in sample_model.iter() {
             let pos = transform.translation;
             gizmos.arrow(pos - Vec3::X, pos + Vec3::X, css::RED);
             gizmos.arrow(pos - Vec3::Y, pos + Vec3::Y, css::GREEN);
