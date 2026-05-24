@@ -29,6 +29,7 @@ A mesh is displayed to which the fragment shader is applied.
 
 - ALWAYS:
   - Separate each features to libs
+- Using Gltf extensions instead of extras to replace a material to a extended material
 - Add some inputs to the fragment shader
   - float values
   - textures
@@ -36,7 +37,8 @@ A mesh is displayed to which the fragment shader is applied.
   - Some objects behind sample
   - Some objects around sample
 - File selector to read other fragment shaders
-- More meshes?
+- More models?
+
 
 ## Issues
 
