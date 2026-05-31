@@ -108,6 +108,9 @@ impl bevy::gltf::extensions::GltfExtensionHandler for ReplaceMaterialGltfExtensi
 
             if sandbox_extension.shader_type == "ASHIOJIN_SANDBOX" {
                 entity.insert(sandbox_extension);
+
+                let t = entity.get_resource::<Assets<StandardMaterial>>().is_some();
+                info!("{t:?}");
             }
         }
     }
@@ -123,7 +126,8 @@ pub fn apply_sandbox_materials(
     sample_state: Res<SampleState>,
     time: Res<Time>,
     #[allow(clippy::type_complexity)]
-    query: Query<
+    query:
+    Query<
         (
             Entity,
             &SandboxExtension,

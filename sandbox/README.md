@@ -24,6 +24,7 @@ A mesh is displayed to which the fragment shader is applied.
   - fragment.wgsl
   - UV texture
   - extended_material.wgsl
+- 2: Toggle billboard mode
 
 ## TODO
 

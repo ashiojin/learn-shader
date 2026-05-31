@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+mod billboard;
 pub mod emitter;
 pub mod extended_material;
 pub mod material;
@@ -15,7 +16,7 @@ pub use state::{SampleModel, SampleState};
 
 use my_meshes::FlatRing3d;
 
-use crate::sample::emitter::spawn_single_gltf_scene;
+use crate::sample::{billboard::add_billboard_component, emitter::spawn_single_gltf_scene};
 
 pub struct SamplePlugin;
 
@@ -38,7 +39,14 @@ impl Plugin for SamplePlugin {
             Update,
             refresh_sample_mesh.run_if(resource_changed::<SampleState>),
         )
-        .add_systems(Update, (insert_sample_material, apply_sandbox_materials))
+        .add_systems(
+            Update,
+            (
+                insert_sample_material,
+                apply_sandbox_materials,
+                add_billboard_component,
+            ),
+        )
         .add_systems(
             Update,
             (
@@ -48,6 +56,12 @@ impl Plugin for SamplePlugin {
                 spawn_single_gltf_scene,
             )
                 .chain(),
+        )
+        .add_systems(
+            PostUpdate,
+            (billboard::update_billboard_transform,)
+                .chain()
+                .before(TransformSystems::Propagate),
         );
     }
 }

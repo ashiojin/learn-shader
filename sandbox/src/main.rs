@@ -151,6 +151,11 @@ fn react_to_keyevent(
         sample_state.next_material();
     }
 
+    // press 2 to toggle billboard
+    if keys.just_pressed(KeyCode::Digit2) {
+        sample_state.toggle_billboard();
+    }
+
     // press 0 to toggle gizmo
     if keys.just_pressed(KeyCode::Digit0) {
         other_state.toggle_gizmo_cross();
