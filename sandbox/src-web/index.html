@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <title>suika_clone</title>
+    <title>sandbox</title>
     <meta charset="UTF-8">
 <style>
     .big {
-        width: 1280px;
-        height: 840px;
+        width: 640px;
+        height: 640px;
 
         font-size: 4em;
     }
@@ -16,7 +16,7 @@
 
 <body style="margin: 0px; background-color: #040404;">
   <script type="module">
-    import init, { start } from './sandbox.js'
+    import init, { start, read_wgsl, write_wgsl } from './sandbox.js'
 
     async function on_load() {
         let wasm = await init().catch((error) => {
@@ -36,6 +36,60 @@
 
     async function open() {
         start()
+
+        // enable buttons
+        // - custom material
+        let apply_btn = document.getElementById('custom_material_apply')
+        apply_btn.addEventListener('click', (ev) => {
+            write_custom_material_wgsl()
+        })
+        apply_btn.disabled = null;
+        let read_btn = document.getElementById('custom_material_read')
+        read_btn.addEventListener('click', (ev) => {
+            read_custom_material_wgsl()
+        })
+        read_btn.disabled = null;
+
+        read_custom_material_wgsl()
+
+        // - extended material
+        let apply_btn2 = document.getElementById('extended_material_apply')
+        apply_btn2.addEventListener('click', (ev) => {
+            write_extended_material_wgsl()
+        })
+        apply_btn2.disabled = null;
+        let read_btn2 = document.getElementById('extended_material_read')
+        read_btn2.addEventListener('click', (ev) => {
+            read_extended_material_wgsl()
+        })
+        read_btn2.disabled = null;
+
+        read_extended_material_wgsl()
+
+    }
+
+    function read_custom_material_wgsl() {
+        let wasm = read_wgsl('CustomMaterial')
+        let textarea = document.getElementById('custom_material_wgsl')
+        textarea.value = wasm
+    }
+
+    function write_custom_material_wgsl() {
+        let textarea = document.getElementById('custom_material_wgsl')
+        let wasm = textarea.value
+        write_wgsl('CustomMaterial', wasm)
+    }
+
+    function read_extended_material_wgsl() {
+        let wasm = read_wgsl('ExtendedMaterial')
+        let textarea = document.getElementById('extended_material_wgsl')
+        textarea.value = wasm
+    }
+
+    function write_extended_material_wgsl() {
+        let textarea = document.getElementById('extended_material_wgsl')
+        let wasm = textarea.value
+        write_wgsl('ExtendedMaterial', wasm)
     }
 
     window.addEventListener('load', (e) => {
@@ -44,6 +98,16 @@
 
   </script>
 
+  <div>
+      <textarea id="custom_material_wgsl"></textarea>
+      <input type="button" id="custom_material_apply" value="Apply" disabled>
+      <input type="button" id="custom_material_read" value="Read" disabled>
+  </div>
+  <div>
+      <textarea id="extended_material_wgsl"></textarea>
+      <input type="button" id="extended_material_apply" value="Apply" disabled>
+      <input type="button" id="extended_material_read" value="Read" disabled>
+  </div>
   <button id="open" type="button" class="big" disabled>Loading...</button>
 
   <p>* Requires Keyboard or Gamepad.</p>

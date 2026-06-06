@@ -1,6 +1,11 @@
-use bevy::{log::LogPlugin, prelude::*};
+use bevy::prelude::*;
 
+#[cfg(not(target_arch = "wasm32"))]
 mod api;
+
+#[cfg(target_arch = "wasm32")]
+pub mod wasm_api;
+
 mod background;
 mod camera;
 mod config;
@@ -19,6 +24,8 @@ use crate::{
     random::RandomPlugin,
     sample::{SamplePlugin, SampleState, extended_material::ReloadReq, reload_shaders},
 };
+
+pub static WASM_RELOAD_REQUESTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 #[derive(Resource)]
 struct ApiReceiver(std::sync::Mutex<std::sync::mpsc::Receiver<()>>);
@@ -41,6 +48,8 @@ fn run_app() {
     std::thread::spawn(move || {
         api::spawn_api_server(reload_tx);
     });
+    #[cfg(target_arch = "wasm32")]
+    let _ = reload_tx;
 
     let asset_root_path = std::env::var("ASSETS_DIR").unwrap_or("assets".into());
     let default_plugin =
@@ -91,12 +100,19 @@ fn run_app() {
         .run();
 }
 
-fn poll_api_reload(api_receiver: Res<ApiReceiver>, mut reload_reqs: MessageWriter<ReloadReq>) {
-    if let Ok(receiver) = api_receiver.0.lock()
-        && receiver.try_recv().is_ok()
-    {
+fn poll_api_reload(api_receiver: Option<Res<ApiReceiver>>, mut reload_reqs: MessageWriter<ReloadReq>) {
+    if let Some(api_receiver) = api_receiver {
+        if let Ok(receiver) = api_receiver.0.lock()
+            && receiver.try_recv().is_ok()
+        {
+            reload_reqs.write(ReloadReq);
+            info!("Reload requested via API");
+        }
+    }
+
+    if WASM_RELOAD_REQUESTED.swap(false, std::sync::atomic::Ordering::Relaxed) {
         reload_reqs.write(ReloadReq);
-        info!("Reload requested via API");
+        info!("Reload requested via WASM JS API");
     }
 }
 
