@@ -24,7 +24,7 @@ fn shake_xy(pos: vec4<f32>) -> vec4<f32> {
 
     // position n is random ([-a, a], [-a, a]) where a is the shake_amount
 
-    let t = globals.time - spawned_at;
+    let t = globals.time - my_extend_2.spawned_at;
 
     let shake_amount = 0.1;
     if fract(t) < 0.5 {
@@ -148,15 +148,24 @@ fn vertex(vertex_no_morph: Vertex) -> VertexOutput {
     return out;
 }
 
-struct MyExtendedMaterial {
+struct MyExtend1 {
     param1: vec4<f32>,
+}
+struct MyExtend2 {
+    spawned_at: f32,
+
+#ifdef SIXTEEN_BYTE_ALIGNMENT
+    _webgl2_padding_8b: u32,
+    _webgl2_padding_12b: u32,
+    _webgl2_padding_16b: u32,
+#endif
 }
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(128)
-var<uniform> my_extended_material: MyExtendedMaterial;
+var<uniform> my_extend_1: MyExtend1;
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(129)
-var<uniform> spawned_at: f32;
+var<uniform> my_extend_2: MyExtend2;
 
 @fragment
 fn fragment(
@@ -169,7 +178,7 @@ fn fragment(
     let lv = length(v);
     let l = smoothstep(0.4, 1.0, lv);
 
-    let elapsed = globals.time - spawned_at;
+    let elapsed = globals.time - my_extend_2.spawned_at;
     let mix_d = smoothstep(0.4, 1.0, elapsed * 0.8);
     //let mix_d = 0.0;
 
@@ -194,7 +203,7 @@ fn fragment(
 
     out.color.a *= l; // fade out when view direction is close to normal direction
 
-    //out.color = mix(out.color, my_extended_material.param1, (t_sin + 1.) / 2.);
+    //out.color = mix(out.color, my_extend_1.param1, (t_sin + 1.) / 2.);
 
     let alpha_flags = pbr_input.material.flags & pbr_types::STANDARD_MATERIAL_FLAGS_ALPHA_MODE_RESERVED_BITS;
     let is_opaque = alpha_flags == pbr_types::STANDARD_MATERIAL_FLAGS_ALPHA_MODE_OPAQUE;

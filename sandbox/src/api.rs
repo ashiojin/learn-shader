@@ -1,3 +1,5 @@
+#![cfg(not(target_arch = "wasm32"))]
+
 use axum::{
     extract::{Path, State},
     http::StatusCode,

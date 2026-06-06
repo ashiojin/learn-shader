@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { workspace = true, features=["3d", "dev"] }
+bevy = { workspace = true, features=["3d"] }
 myshaderlib = { path = "../myshaderlib" }
 my_meshes = { path = "../my_meshes" }
 
@@ -14,10 +14,14 @@ gltf = { workspace = true }
 
 serde = { workspace = true }
 serde_json = { workspace = true }
+wasm-bindgen= { workspace = true }
 
+[target.'cfg(windows)'.dependencies]
 axum = "0.7"
 tokio = { version = "1", features = ["full"] }
 tower-http = { version = "0.5", features = ["cors"] }
+
+
 
 # ---
 # Workaround : see https://github.com/bevyengine/bevy/issues/10425
@@ -25,3 +29,7 @@ tower-http = { version = "0.5", features = ["cors"] }
 version = "1.8"
 features = ["pure"]
 # ---
+
+[target.'cfg(target_family = "wasm")'.dependencies.getrandom]
+version = "0.3.4"
+features = ["wasm_js"]

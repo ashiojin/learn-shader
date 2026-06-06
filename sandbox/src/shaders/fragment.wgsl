@@ -12,8 +12,18 @@
 
 #import simplex_noise_f32::{snoise3D}
 
+struct CustomMaterial {
+    spawned_at: f32,
+
+#ifdef SIXTEEN_BYTE_ALIGNMENT
+    _webgl2_padding_8b: u32,
+    _webgl2_padding_12b: u32,
+    _webgl2_padding_16b: u32,
+#endif
+}
+
 @group(#{MATERIAL_BIND_GROUP}) @binding(129)
-var<uniform> spawned_at: f32;
+var<uniform> custom_material: CustomMaterial;
 
 fn block_noise(uv: vec2<f32>) -> vec3<f32> {
     let st = uv * 16.0;
@@ -92,7 +102,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
 
     //let n = 0.0;
     let o = in.uv;
-    let elapsed = globals.time - spawned_at;
+    let elapsed = globals.time - custom_material.spawned_at;
     let t = fract(globals.time);
     let p = vec2(o.x + 0.01*sin(o.y * 2.*PI), pow(o.y, 0.42));
     let n_move =  vec2(0.0, globals.time * 5.5);

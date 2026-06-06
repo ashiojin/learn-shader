@@ -15,10 +15,21 @@ pub struct MyExtension {
 
     #[uniform(129)]
     pub spawned_at: f32,
+    // NOTE: For now, we use `webgl2` feature flag (default) of bevy, it requires uniform buffer size to be 16 bytes aligned, so we add some padding here.
+    #[uniform(129)]
+    _weggl2_padding_8b: u32,
+    #[uniform(129)]
+    _weggl2_padding_12b: u32,
+    #[uniform(129)]
+    _weggl2_padding_16b: u32,
 }
 impl MyExtension {
     pub fn new(param1: LinearRgba, spawned_at: f32) -> Self {
-        Self { param1, spawned_at }
+        Self {
+            param1,
+            spawned_at,
+            ..default()
+        }
     }
 }
 
@@ -47,7 +58,9 @@ const EXTENDED_MATERIAL_WGSL_UUID: Uuid = Uuid::from_u128(0xffff0000aaaabdef1234
 const EXTENDED_MATERIAL_WGSL_PATH: &str = "globals:extended_material.wgsl";
 
 pub fn init_global_res(mut req_sender: MessageWriter<ReloadReq>) {
-    let mut wgsl = EXTENDED_MATERIAL_WGSL.lock().expect("Failed to lock EXTENDED_WGSL");
+    let mut wgsl = EXTENDED_MATERIAL_WGSL
+        .lock()
+        .expect("Failed to lock EXTENDED_WGSL");
 
     wgsl.clear();
     let bytes = include_bytes!("../shaders/extended_material.wgsl");
@@ -68,7 +81,9 @@ pub fn load_global_res(
     if !is_requested {
         return;
     }
-    let wgsl = EXTENDED_MATERIAL_WGSL.lock().expect("Failed to lock EXTENDED_WGSL");
+    let wgsl = EXTENDED_MATERIAL_WGSL
+        .lock()
+        .expect("Failed to lock EXTENDED_WGSL");
     let copy = wgsl.clone();
     let text = String::from_utf8(copy).unwrap();
     let shader = Shader::from_wgsl(text, EXTENDED_MATERIAL_WGSL_PATH.to_string());
@@ -80,12 +95,16 @@ pub fn load_global_res(
 }
 
 pub fn write_global_res(wgsl_text: &str) {
-    let mut wgsl = EXTENDED_MATERIAL_WGSL.lock().expect("Failed to lock EXTENDED_WGSL");
+    let mut wgsl = EXTENDED_MATERIAL_WGSL
+        .lock()
+        .expect("Failed to lock EXTENDED_WGSL");
     wgsl.clear();
     wgsl.extend_from_slice(wgsl_text.as_bytes());
 }
 
 pub fn read_global_res() -> String {
-    let wgsl = EXTENDED_MATERIAL_WGSL.lock().expect("Failed to lock EXTENDED_WGSL");
+    let wgsl = EXTENDED_MATERIAL_WGSL
+        .lock()
+        .expect("Failed to lock EXTENDED_WGSL");
     String::from_utf8(wgsl.clone()).unwrap()
 }

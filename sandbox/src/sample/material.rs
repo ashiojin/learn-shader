@@ -11,10 +11,18 @@ use crate::sample::extended_material::{
     MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension, ReloadReq,
 };
 
-#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
+#[derive(Asset, TypePath, AsBindGroup, Debug, Clone, Default)]
 pub struct CustomMaterial {
     #[uniform(129)]
     spawned_at: f32,
+
+    // NOTE: For now, we use `webgl2` feature flag (default) of bevy, it requires uniform buffer size to be 16 bytes aligned, so we add some padding here.
+    #[uniform(129)]
+    _weggl2_padding_8b: u32,
+    #[uniform(129)]
+    _weggl2_padding_12b: u32,
+    #[uniform(129)]
+    _weggl2_padding_16b: u32,
 }
 
 pub const SHADER_ASSET_PATH: &str = "shaders/fragment.wgsl";
@@ -92,6 +100,7 @@ pub fn insert_sample_material(
                     .entity(entity)
                     .try_insert(MeshMaterial3d(custom_materials.add(CustomMaterial {
                         spawned_at: time.elapsed_secs(),
+                        ..default()
                     })));
             }
             SampleMaterialType::UserExtended => {
@@ -193,6 +202,7 @@ pub fn apply_sandbox_materials(
             SampleMaterialType::User => {
                 let custom_material = CustomMaterial {
                     spawned_at: time.elapsed_secs(),
+                    ..default()
                 };
                 let asset_handle = custom_materials.add(custom_material);
                 commands.entity(entity).insert(MeshMaterial3d(asset_handle));

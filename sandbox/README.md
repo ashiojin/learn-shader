@@ -45,10 +45,38 @@ The sandbox runs an HTTP API server on a background thread to enable external te
     curl -X POST -d "@src/shaders/fragment.wgsl" http://localhost:3000/wgsl/CustomMaterial
     ```
 
+## BUILD
+
+### For Windows(MSVC)
+
+```bash
+cargo build --target x86_64-pc-windows-msvc
+```
+
+### For WASM
+
+Web APIs are not supported for WASM version.
+
+```bash
+cargo install wasm-bindgen-cli
+```
+
+```bash
+cargo build --release --target wasm32-unknown-unknown
+wasm-bindgen --no-typescript --target web --out-dir ./out-web/ ../target/wasm32-unknown-unknown/release/sandbox.wasm
+cp src-web/index.html out-web/
+
+# Run
+cd out-web/
+python3 -m http.server 8080
+```
+
 ## TODO
 
 - ALWAYS:
   - Separate each features to libs
+- WASM version
+  - expose functions to js instead of Web APIs
 - Using Gltf extensions instead of extras to replace a material to a extended material
 - Add some inputs to the fragment shader
   - float values

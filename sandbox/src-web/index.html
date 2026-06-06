@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>suika_clone</title>
+    <meta charset="UTF-8">
+<style>
+    .big {
+        width: 1280px;
+        height: 840px;
+
+        font-size: 4em;
+    }
+    .
+</style>
+</head>
+
+<body style="margin: 0px; background-color: #040404;">
+  <script type="module">
+    import init, { start } from './sandbox.js'
+
+    async function on_load() {
+        let wasm = await init().catch((error) => {
+            if (!error.message.startsWith("Using exceptions for control flow, don't mind me. This isn't actually an error!")) {
+                throw error;
+            }
+        })
+
+        let btn = document.getElementById('open')
+        btn.addEventListener('click', (ev) => {
+            btn.remove()
+            open()
+        })
+        btn.textContent = 'Open'
+        btn.disabled = null;
+    }
+
+    async function open() {
+        start()
+    }
+
+    window.addEventListener('load', (e) => {
+        on_load()
+    })
+
+  </script>
+
+  <button id="open" type="button" class="big" disabled>Loading...</button>
+
+  <p>* Requires Keyboard or Gamepad.</p>
+</body>
+
+</html>

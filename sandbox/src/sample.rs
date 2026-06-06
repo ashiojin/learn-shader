@@ -23,6 +23,20 @@ pub struct SamplePlugin;
 impl Plugin for SamplePlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<material::SandboxExtension>();
+
+        #[cfg(target_family = "wasm")]
+        bevy::tasks::block_on(async {
+            app.world_mut()
+                .resource_mut::<bevy::gltf::extensions::GltfExtensionHandlers>()
+                .0
+                .write()
+                .await
+                .push(Box::new(
+                    crate::sample::material::ReplaceMaterialGltfExtensionHandler,
+                ));
+        });
+
+        #[cfg(not(target_family = "wasm"))]
         app.world_mut()
             .resource_mut::<bevy::gltf::extensions::GltfExtensionHandlers>()
             .0
@@ -30,6 +44,8 @@ impl Plugin for SamplePlugin {
             .push(Box::new(
                 crate::sample::material::ReplaceMaterialGltfExtensionHandler,
             ));
+
+
         app.add_plugins((
             MaterialPlugin::<CustomMaterial>::default(),
             extended_material::MyExtendedMaterialPlugin::default(),

@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{log::LogPlugin, prelude::*};
 
 mod api;
 mod background;
@@ -23,15 +23,27 @@ use crate::{
 #[derive(Resource)]
 struct ApiReceiver(std::sync::Mutex<std::sync::mpsc::Receiver<()>>);
 
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn start() {
+    run_app();
+}
+
 fn main() {
+    #[cfg(not(target_arch = "wasm32"))]
+    run_app();
+}
+
+fn run_app() {
     let (reload_tx, reload_rx) = std::sync::mpsc::channel();
+
+    #[cfg(not(target_arch = "wasm32"))]
     std::thread::spawn(move || {
         api::spawn_api_server(reload_tx);
     });
 
     let asset_root_path = std::env::var("ASSETS_DIR").unwrap_or("assets".into());
-    App::new()
-        .add_plugins((
+    let default_plugin =
             DefaultPlugins
                 .set(AssetPlugin {
                     file_path: asset_root_path,
@@ -50,7 +62,15 @@ fn main() {
                         ..default()
                     }),
                     ..default()
-                }),
+                })
+                .build();
+    // #[cfg(target_family = "wasm")]
+    // let default_plugin = default_plugin.disable::<LogPlugin>();
+
+    App::new()
+        .add_plugins((
+                default_plugin
+                ,
             myshaderlib::MyShaderLibPlugin,
             RandomPlugin,
             SamplePlugin,
