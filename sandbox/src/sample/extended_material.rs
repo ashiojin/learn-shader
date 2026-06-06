@@ -50,7 +50,7 @@ pub fn init_global_res(mut req_sender: MessageWriter<ReloadReq>) {
     let mut wgsl = EXTENDED_MATERIAL_WGSL.lock().expect("Failed to lock EXTENDED_WGSL");
 
     wgsl.clear();
-    let bytes = include_bytes!("../../assets/shaders/extended_material.wgsl");
+    let bytes = include_bytes!("../shaders/extended_material.wgsl");
 
     wgsl.extend_from_slice(bytes);
 

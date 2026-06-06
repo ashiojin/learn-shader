@@ -26,7 +26,7 @@ const CUSTOM_MATERIAL_WGSL_PATH: &str = "globals:custom_material.wgsl";
 pub fn init_custom_material(mut req_sender: MessageWriter<ReloadReq>) {
     let mut wgsl = CUSTOM_MATERIAL_WGSL.lock().expect("Failed to lock CUSTOM_WGSL");
     wgsl.clear();
-    let bytes = include_bytes!("../../assets/shaders/fragment.wgsl");
+    let bytes = include_bytes!("../shaders/fragment.wgsl");
     wgsl.extend_from_slice(bytes);
     req_sender.write(ReloadReq);
 }
