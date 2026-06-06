@@ -31,11 +31,14 @@ static CUSTOM_MATERIAL_WGSL: Mutex<Vec<u8>> = Mutex::new(Vec::new());
 const CUSTOM_MATERIAL_WGSL_UUID: Uuid = Uuid::from_u128(0xffff0000aaaabdef1234567890abcdee);
 const CUSTOM_MATERIAL_WGSL_PATH: &str = "globals:custom_material.wgsl";
 
-pub fn init_custom_material(mut req_sender: MessageWriter<ReloadReq>) {
+pub fn init_custom_material_global() {
     let mut wgsl = CUSTOM_MATERIAL_WGSL.lock().expect("Failed to lock CUSTOM_WGSL");
     wgsl.clear();
     let bytes = include_bytes!("../shaders/fragment.wgsl");
     wgsl.extend_from_slice(bytes);
+}
+
+pub fn request_load_custom_material(mut req_sender: MessageWriter<ReloadReq>) {
     req_sender.write(ReloadReq);
 }
 

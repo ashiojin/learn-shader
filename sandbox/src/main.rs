@@ -22,7 +22,7 @@ use crate::{
     config::{ConfigState, draw_gizmo},
     light::{LightState, change_light, update_rotate_light},
     random::RandomPlugin,
-    sample::{SamplePlugin, SampleState, extended_material::ReloadReq, reload_shaders},
+    sample::{SamplePlugin, SampleState, extended_material::ReloadReq, init_globals, reload_shaders},
 };
 
 pub static WASM_RELOAD_REQUESTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -37,6 +37,7 @@ pub fn start() {
 }
 
 fn main() {
+    init_globals();
     #[cfg(not(target_arch = "wasm32"))]
     run_app();
 }
@@ -68,6 +69,8 @@ fn run_app() {
                             max_width: 640.0,
                             max_height: 640.0,
                         },
+                        canvas: Some("#bevy".to_owned()), // only used for wasm, but doesn't hurt to set it for native
+                        fit_canvas_to_parent: true, // only used for wasm, but doesn't hurt to set it for native
                         ..default()
                     }),
                     ..default()

@@ -16,9 +16,17 @@ pub use state::{SampleModel, SampleState};
 
 use my_meshes::FlatRing3d;
 
-use crate::sample::{billboard::add_billboard_component, emitter::spawn_single_gltf_scene, extended_material::{ReloadReq, init_global_res, load_global_res}};
+use crate::sample::{billboard::add_billboard_component, emitter::spawn_single_gltf_scene, extended_material::{ReloadReq, init_extended_material_global, load_global_res, request_load_extended_material}, material::init_custom_material_global};
 
 pub struct SamplePlugin;
+
+// TODO: This is a bit of a hack to initialize the global resources for the materials. We should
+// find a better way to do this. WASM API can then read and write the global resources immidiately
+// without having to wait for the initialization systems to run.
+pub fn init_globals() {
+    init_custom_material_global();
+    init_extended_material_global();
+}
 
 impl Plugin for SamplePlugin {
     fn build(&self, app: &mut App) {
@@ -52,7 +60,7 @@ impl Plugin for SamplePlugin {
         ))
         .add_message::<ReloadReq>()
         .insert_resource(SampleState::default())
-        .add_systems(Startup, (init_global_res, material::init_custom_material))
+        .add_systems(Startup, (request_load_extended_material, material::request_load_custom_material))
         .add_systems(Update, (load_global_res, material::load_custom_material))
         .add_systems(
             Update,

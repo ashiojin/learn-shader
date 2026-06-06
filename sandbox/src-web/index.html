@@ -10,12 +10,86 @@
 
         font-size: 4em;
     }
-    .
+    
+    .tab-panel {
+        background-color: #1e1e1e;
+        height: 100%;
+        width: 100%;
+        display: none;
+    }
+
+    .tab-selected {
+        display: grid;
+        width: 100%;
+        height: 100%;
+        grid-template-rows: auto 2.0em;
+        grid-row-gap: 10px;
+        grid-column-gap: 10px;
+    }
+
+    textarea {
+        box-sizing: border-box; /* パディングを要素の幅と高さに含める */
+        display: block;
+        width: 100%;            /* グリッドの幅いっぱいに広げる */
+        padding: 12px 16px;     /* 上下に12px、左右に16pxの余白を設定 */
+        overflow: auto;         /* 文字がはみ出た際のスクロールバーを適切に表示 */
+        resize: vertical;       /* 縦方向のリサイズのみ許可する */
+    }
+
+    .tab-radio {
+        display: none;
+    }
+    label {
+        background-color: #1e1e1e;
+        color: #fefefe;
+    }
+    input:checked + label {
+        background-color: #fefefe;
+        color: #000000;
+    }
+
+    .bevy-canvas {
+        width: 640px;
+        height: 640px;
+    }
+
+    .hide-before-start {
+        display: none;
+    }
+
+    .container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, 640px);
+    }
+    .app {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 640px;
+        width: 640px;
+    }
+    .control {
+        display: grid;
+        height: 640px;
+        width: 640px;
+        grid-template-columns: auto;
+        grid-template-rows: 1.2em auto;
+    }
+    .tabs {
+        width: 100%;
+        height: 1.2em;
+    }
+    .wgsl_text {
+        width: 100%;
+        height: 100%;
+    }
+
+
 </style>
 </head>
 
 <body style="margin: 0px; background-color: #040404;">
-  <script type="module">
+    <script type="module">
     import init, { start, read_wgsl, write_wgsl } from './sandbox.js'
 
     async function on_load() {
@@ -28,6 +102,8 @@
         let btn = document.getElementById('open')
         btn.addEventListener('click', (ev) => {
             btn.remove()
+            let canvas = document.getElementById('bevy')
+            canvas.classList.remove('hide-before-start')
             open()
         })
         btn.textContent = 'Open'
@@ -66,11 +142,34 @@
 
         read_extended_material_wgsl()
 
+        // enable tabs
+        function tab_changed(_ev) {
+            let tab_custom_material = document.getElementById('tab_custom_material')
+            let tab_extended_material = document.getElementById('tab_extended_material')
+            let panel_custom_material = document.querySelector('.panel-custom_material')
+            let panel_extended_material = document.querySelector('.panel-extended_material')
+
+            if (tab_custom_material.checked) {
+                panel_custom_material.classList.add('tab-selected')
+                panel_extended_material.classList.remove('tab-selected')
+            } else if (tab_extended_material.checked) {
+                panel_custom_material.classList.remove('tab-selected')
+                panel_extended_material.classList.add('tab-selected')
+            }
+        }
+        let tab_custom_material = document.getElementById('tab_custom_material')
+        tab_custom_material.disabled = null;
+        let tab_extended_material = document.getElementById('tab_extended_material')
+        tab_extended_material.disabled = null;
+        tab_custom_material.addEventListener('change', tab_changed)
+        tab_extended_material.addEventListener('change', tab_changed)
+        tab_changed()
     }
 
     function read_custom_material_wgsl() {
         let wasm = read_wgsl('CustomMaterial')
         let textarea = document.getElementById('custom_material_wgsl')
+        console.log('read_custom_material_wgsl', wasm)
         textarea.value = wasm
     }
 
@@ -83,6 +182,7 @@
     function read_extended_material_wgsl() {
         let wasm = read_wgsl('ExtendedMaterial')
         let textarea = document.getElementById('extended_material_wgsl')
+        console.log('read_extended_material_wgsl', wasm)
         textarea.value = wasm
     }
 
@@ -96,21 +196,36 @@
         on_load()
     })
 
-  </script>
+    </script>
 
-  <div>
-      <textarea id="custom_material_wgsl"></textarea>
-      <input type="button" id="custom_material_apply" value="Apply" disabled>
-      <input type="button" id="custom_material_read" value="Read" disabled>
-  </div>
-  <div>
-      <textarea id="extended_material_wgsl"></textarea>
-      <input type="button" id="extended_material_apply" value="Apply" disabled>
-      <input type="button" id="extended_material_read" value="Read" disabled>
-  </div>
-  <button id="open" type="button" class="big" disabled>Loading...</button>
-
-  <p>* Requires Keyboard or Gamepad.</p>
+    <div class="container">
+        <div class="app">
+            <canvas id="bevy" class="bevy-canvas hide-before-start"></canvas>
+            <button id="open" type="button" class="big" disabled>Loading...</button>
+        </div>
+        <div class="control">
+            <div class="tabs">
+                <input type="radio" name="tab-radio" id="tab_custom_material" class="tab-radio" value="Custom Material" disabled checked>
+                <label for="tab_custom_material">Custom Material</label>
+                <input type="radio" name="tab-radio" id="tab_extended_material" class="tab-radio" value="Extended Material" disabled>
+                <label for="tab_extended_material">Extended Material</label>
+            </div>
+            <div class="tab-panel panel-custom_material">
+                <textarea id="custom_material_wgsl" class="wgsl_text"></textarea>
+                <div class="control-btns">
+                    <input type="button" id="custom_material_apply" class="wgsl_btn" value="Apply" disabled>
+                    <input type="button" id="custom_material_read" class="wgsl_btn" value="Read" disabled>
+                </div>
+            </div>
+            <div class="tab-panel panel-extended_material">
+                <textarea id="extended_material_wgsl" class="wgsl_text"></textarea>
+                <div class="control-btns">
+                    <input type="button" id="extended_material_apply" class="wgsl_btn" value="Apply" disabled>
+                    <input type="button" id="extended_material_read" class="wgsl_btn" value="Read" disabled>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

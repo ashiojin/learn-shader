@@ -57,7 +57,7 @@ static EXTENDED_MATERIAL_WGSL: Mutex<Vec<u8>> = Mutex::new(Vec::new());
 const EXTENDED_MATERIAL_WGSL_UUID: Uuid = Uuid::from_u128(0xffff0000aaaabdef1234567890abcdef);
 const EXTENDED_MATERIAL_WGSL_PATH: &str = "globals:extended_material.wgsl";
 
-pub fn init_global_res(mut req_sender: MessageWriter<ReloadReq>) {
+pub fn init_extended_material_global() {
     let mut wgsl = EXTENDED_MATERIAL_WGSL
         .lock()
         .expect("Failed to lock EXTENDED_WGSL");
@@ -66,7 +66,9 @@ pub fn init_global_res(mut req_sender: MessageWriter<ReloadReq>) {
     let bytes = include_bytes!("../shaders/extended_material.wgsl");
 
     wgsl.extend_from_slice(bytes);
+}
 
+pub fn request_load_extended_material(mut req_sender: MessageWriter<ReloadReq>) {
     req_sender.write(ReloadReq);
 }
 
