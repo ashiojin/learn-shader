@@ -1,11 +1,14 @@
+use std::sync::Mutex;
+
 use bevy::{
+    asset::uuid::Uuid,
     color::palettes::css, pbr::ExtendedMaterial, prelude::*, render::render_resource::AsBindGroup,
 };
 
 use super::state::SampleModel;
 use super::state::{SampleMaterialType, SampleState};
 use crate::sample::extended_material::{
-    MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension, ReloadReq, text_write_global_res,
+    MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension, ReloadReq,
 };
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
@@ -15,9 +18,51 @@ pub struct CustomMaterial {
 }
 
 pub const SHADER_ASSET_PATH: &str = "shaders/fragment.wgsl";
+
+static CUSTOM_MATERIAL_WGSL: Mutex<Vec<u8>> = Mutex::new(Vec::new());
+const CUSTOM_MATERIAL_WGSL_UUID: Uuid = Uuid::from_u128(0xffff0000aaaabdef1234567890abcdee);
+const CUSTOM_MATERIAL_WGSL_PATH: &str = "globals:custom_material.wgsl";
+
+pub fn init_custom_material(mut req_sender: MessageWriter<ReloadReq>) {
+    let mut wgsl = CUSTOM_MATERIAL_WGSL.lock().expect("Failed to lock CUSTOM_WGSL");
+    wgsl.clear();
+    let bytes = include_bytes!("../../assets/shaders/fragment.wgsl");
+    wgsl.extend_from_slice(bytes);
+    req_sender.write(ReloadReq);
+}
+
+pub fn load_custom_material(
+    mut shaders: ResMut<Assets<Shader>>,
+    mut reload_reqs: MessageReader<ReloadReq>,
+) {
+    let is_requested = reload_reqs.read().any(|_| true);
+    if !is_requested {
+        return;
+    }
+    let wgsl = CUSTOM_MATERIAL_WGSL.lock().expect("Failed to lock CUSTOM_WGSL");
+    let copy = wgsl.clone();
+    let text = String::from_utf8(copy).unwrap();
+    let shader = Shader::from_wgsl(text, CUSTOM_MATERIAL_WGSL_PATH.to_string());
+    shaders
+        .insert(CUSTOM_MATERIAL_WGSL_UUID, shader)
+        .expect("Failed to insert shader");
+    info!("Reloaded custom material shader");
+}
+
+pub fn write_custom_material(wgsl_text: &str) {
+    let mut wgsl = CUSTOM_MATERIAL_WGSL.lock().expect("Failed to lock CUSTOM_WGSL");
+    wgsl.clear();
+    wgsl.extend_from_slice(wgsl_text.as_bytes());
+}
+
+pub fn read_custom_material() -> String {
+    let wgsl = CUSTOM_MATERIAL_WGSL.lock().expect("Failed to lock CUSTOM_WGSL");
+    String::from_utf8(wgsl.clone()).unwrap()
+}
+
 impl Material for CustomMaterial {
     fn fragment_shader() -> bevy::shader::ShaderRef {
-        SHADER_ASSET_PATH.into()
+        bevy::shader::ShaderRef::Handle(CUSTOM_MATERIAL_WGSL_UUID.into())
     }
 
     fn alpha_mode(&self) -> AlphaMode {

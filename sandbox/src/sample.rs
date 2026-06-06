@@ -36,8 +36,8 @@ impl Plugin for SamplePlugin {
         ))
         .add_message::<ReloadReq>()
         .insert_resource(SampleState::default())
-        .add_systems(Startup, init_global_res)
-        .add_systems(Update, load_global_res)
+        .add_systems(Startup, (init_global_res, material::init_custom_material))
+        .add_systems(Update, (load_global_res, material::load_custom_material))
         .add_systems(
             Update,
             refresh_sample_mesh.run_if(resource_changed::<SampleState>),

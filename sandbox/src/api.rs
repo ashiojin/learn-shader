@@ -50,6 +50,8 @@ pub fn spawn_api_server(reload_tx: Sender<()>) {
 async fn read_wgsl(Path(shader_type): Path<String>) -> impl IntoResponse {
     if shader_type == "ExtendedMaterial" {
         (StatusCode::OK, crate::sample::extended_material::read_global_res())
+    } else if shader_type == "CustomMaterial" {
+        (StatusCode::OK, crate::sample::material::read_custom_material())
     } else {
         (StatusCode::NOT_FOUND, "Unknown shader type".to_string())
     }
@@ -62,6 +64,10 @@ async fn write_wgsl(
 ) -> impl IntoResponse {
     if shader_type == "ExtendedMaterial" {
         crate::sample::extended_material::write_global_res(&body);
+        let _ = state.reload_tx.send(());
+        (StatusCode::OK, "WGSL updated".to_string())
+    } else if shader_type == "CustomMaterial" {
+        crate::sample::material::write_custom_material(&body);
         let _ = state.reload_tx.send(());
         (StatusCode::OK, "WGSL updated".to_string())
     } else {
