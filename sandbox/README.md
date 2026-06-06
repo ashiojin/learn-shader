@@ -56,6 +56,7 @@ cargo build --target x86_64-pc-windows-msvc
 ### For WASM
 
 Web APIs are not supported for WASM version.
+Instead of Web APIs, WASM APIs (functions) are supported. See src/wasm_api.rs
 
 ```bash
 cargo install wasm-bindgen-cli
@@ -76,7 +77,8 @@ python3 -m http.server 8080
 - ALWAYS:
   - Separate each features to libs
 - WASM version
-  - expose functions to js instead of Web APIs
+  - New index.html
+  - new WASM Api reading status
 - Using Gltf extensions instead of extras to replace a material to a extended material
 - Add some inputs to the fragment shader
   - float values
