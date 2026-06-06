@@ -1,30 +1,49 @@
 # Sandbox
 
-A Sanxbox to write a fragment shader.
+A Sandbox to write and live-edit shaders online.
 
 ## Usage
 
-This app shows a mesh with a shader:
-
-- `assets/shaders/fragment.wgsl`
-  - fragment shader only
-- `assets/shaders/extended_material.wgsl`
-  - vertex shader and fragment shader
-
-A mesh is displayed to which the fragment shader is applied.
+A mesh is displayed to which the active shader is applied. Shaders are loaded into memory on startup from initial files under `src/shaders/`, and can be read and live-edited online via the HTTP API.
 
 - wasd: Rotate the mesh
 - q: Reset the camera
 - n: Change the mesh
-- r: Reload shaders
+- r: Reload shaders from files (for assets loaded via AssetServer)
 - 0: Show a cross at the origin
 - b: Change the background
 - l: Change the light
 - 1: Change the material
-  - fragment.wgsl
+  - CustomMaterial (in-memory, editable via API)
   - UV texture
-  - extended_material.wgsl
+  - ExtendedMaterial (in-memory, editable via API)
 - 2: Toggle billboard mode
+
+## Online Read/Write API Server
+
+The sandbox runs an HTTP API server on a background thread to enable external text editors or browser-based tools to dynamically read and write the WGSL shader sources online. The API operates in-memory and triggers live hot-reloading in Bevy immediately upon update.
+
+### Configuration
+*   **Port**: `3000` (default), overridable via the `API_PORT` environment variable.
+*   **CORS**: Enabled (Cross-Origin Resource Sharing is allowed for any origin to ease browser integration).
+
+### API Endpoints
+*   **Read WGSL Shader Source**:
+    *   `GET /wgsl/CustomMaterial` — Reads the current CustomMaterial shader source.
+    *   `GET /wgsl/ExtendedMaterial` — Reads the current ExtendedMaterial shader source.
+*   **Write/Update WGSL Shader Source**:
+    *   `POST /wgsl/CustomMaterial` — Accepts raw WGSL as text to update the CustomMaterial shader and triggers a reload.
+    *   `POST /wgsl/ExtendedMaterial` — Accepts raw WGSL as text to update the ExtendedMaterial shader and triggers a reload.
+
+### Examples
+*   **Read a shader using curl**:
+    ```bash
+    curl http://localhost:3000/wgsl/CustomMaterial
+    ```
+*   **Upload a shader update using curl**:
+    ```bash
+    curl -X POST -d "@src/shaders/fragment.wgsl" http://localhost:3000/wgsl/CustomMaterial
+    ```
 
 ## TODO
 
