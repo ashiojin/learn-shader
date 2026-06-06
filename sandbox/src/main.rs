@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+mod api;
 mod background;
 mod camera;
 mod config;
@@ -16,10 +17,18 @@ use crate::{
     config::{ConfigState, draw_gizmo},
     light::{LightState, change_light, update_rotate_light},
     random::RandomPlugin,
-    sample::{SamplePlugin, SampleState, reload_shaders},
+    sample::{SamplePlugin, SampleState, extended_material::ReloadReq, reload_shaders},
 };
 
+#[derive(Resource)]
+struct ApiReceiver(std::sync::Mutex<std::sync::mpsc::Receiver<()>>);
+
 fn main() {
+    let (reload_tx, reload_rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        api::spawn_api_server(reload_tx);
+    });
+
     let asset_root_path = std::env::var("ASSETS_DIR").unwrap_or("assets".into());
     App::new()
         .add_plugins((
@@ -49,8 +58,9 @@ fn main() {
         .insert_resource(ConfigState::default())
         .insert_resource(BackgroundState::default())
         .insert_resource(LightState::default())
+        .insert_resource(ApiReceiver(std::sync::Mutex::new(reload_rx)))
         .add_systems(Startup, (setup,))
-        .add_systems(Update, (react_to_keyevent, draw_gizmo))
+        .add_systems(Update, (react_to_keyevent, draw_gizmo, poll_api_reload))
         .add_systems(Update, update_camera_follower)
         .add_systems(Update, update_rotate_light)
         .add_systems(
@@ -59,6 +69,15 @@ fn main() {
         )
         .add_systems(Update, change_light.run_if(resource_changed::<LightState>))
         .run();
+}
+
+fn poll_api_reload(api_receiver: Res<ApiReceiver>, mut reload_reqs: MessageWriter<ReloadReq>) {
+    if let Ok(receiver) = api_receiver.0.lock()
+        && receiver.try_recv().is_ok()
+    {
+        reload_reqs.write(ReloadReq);
+        info!("Reload requested via API");
+    }
 }
 
 fn setup(mut commands: Commands) {

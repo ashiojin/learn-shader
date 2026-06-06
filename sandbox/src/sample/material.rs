@@ -4,7 +4,9 @@ use bevy::{
 
 use super::state::SampleModel;
 use super::state::{SampleMaterialType, SampleState};
-use crate::sample::extended_material::{MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension};
+use crate::sample::extended_material::{
+    MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension, ReloadReq, text_write_global_res,
+};
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 pub struct CustomMaterial {
@@ -103,8 +105,9 @@ impl bevy::gltf::extensions::GltfExtensionHandler for ReplaceMaterialGltfExtensi
         entity: &mut EntityWorldMut,
     ) {
         if let Some(extension_value) = material.extension_value(EXTENSION_NAME) {
-            let sandbox_extension: SandboxExtension = serde_json::from_value(extension_value.clone())
-                .expect("Failed to parse ASHIOJIN_material_sandbox extension");
+            let sandbox_extension: SandboxExtension =
+                serde_json::from_value(extension_value.clone())
+                    .expect("Failed to parse ASHIOJIN_material_sandbox extension");
 
             if sandbox_extension.shader_type == "ASHIOJIN_SANDBOX" {
                 entity.insert(sandbox_extension);
@@ -125,9 +128,7 @@ pub fn apply_sandbox_materials(
     asset_server: Res<AssetServer>,
     sample_state: Res<SampleState>,
     time: Res<Time>,
-    #[allow(clippy::type_complexity)]
-    query:
-    Query<
+    #[allow(clippy::type_complexity)] query: Query<
         (
             Entity,
             &SandboxExtension,

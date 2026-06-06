@@ -16,7 +16,7 @@ pub use state::{SampleModel, SampleState};
 
 use my_meshes::FlatRing3d;
 
-use crate::sample::{billboard::add_billboard_component, emitter::spawn_single_gltf_scene};
+use crate::sample::{billboard::add_billboard_component, emitter::spawn_single_gltf_scene, extended_material::{ReloadReq, init_global_res, load_global_res}};
 
 pub struct SamplePlugin;
 
@@ -34,7 +34,10 @@ impl Plugin for SamplePlugin {
             MaterialPlugin::<CustomMaterial>::default(),
             extended_material::MyExtendedMaterialPlugin::default(),
         ))
+        .add_message::<ReloadReq>()
         .insert_resource(SampleState::default())
+        .add_systems(Startup, init_global_res)
+        .add_systems(Update, load_global_res)
         .add_systems(
             Update,
             refresh_sample_mesh.run_if(resource_changed::<SampleState>),

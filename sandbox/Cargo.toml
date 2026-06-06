@@ -15,6 +15,10 @@ gltf = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.5", features = ["cors"] }
+
 # ---
 # Workaround : see https://github.com/bevyengine/bevy/issues/10425
 [dependencies.blake3]
