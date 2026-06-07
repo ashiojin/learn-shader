@@ -105,8 +105,8 @@ fn poll_api_commands(
                 reload_reqs.write(ReloadReq);
                 info!("Reload requested via unified API");
             }
-            crate::api_shared::ApiCommand::SelectMode(mode) => {
-                info!("API requested mode selection: {}", mode);
+            crate::api_shared::ApiCommand::SelectSampleMode(mode) => {
+                info!("API requested sample mode selection: {}", mode);
                 if let Some(state) = sample_state.as_deref_mut() {
                     match mode.as_str() {
                         "Saru" => state.sample_type = crate::sample::state::SampleType::Saru,
@@ -118,7 +118,18 @@ fn poll_api_commands(
                         "SphericalZone" => state.sample_type = crate::sample::state::SampleType::SphericalZone,
                         "Belt" => state.sample_type = crate::sample::state::SampleType::Belt,
                         "Emitter1" => state.sample_type = crate::sample::state::SampleType::Emitter1,
-                        _ => warn!("Unknown mode requested via API: {}", mode),
+                        _ => warn!("Unknown sample mode requested via API: {}", mode),
+                    }
+                }
+            }
+            crate::api_shared::ApiCommand::SelectMaterialMode(mode) => {
+                info!("API requested material mode selection: {}", mode);
+                if let Some(state) = sample_state.as_deref_mut() {
+                    match mode.as_str() {
+                        "User" => state.material_type = crate::sample::state::SampleMaterialType::User,
+                        "UserExtended" => state.material_type = crate::sample::state::SampleMaterialType::UserExtended,
+                        "UvTest1024" => state.material_type = crate::sample::state::SampleMaterialType::UvTest1024,
+                        _ => warn!("Unknown material mode requested via API: {}", mode),
                     }
                 }
             }
@@ -128,8 +139,8 @@ fn poll_api_commands(
 
 fn sync_telemetry_cache(sample_state: Option<Res<SampleState>>) {
     if let Some(state) = sample_state {
-        let current_mode = format!("{:?}", state.sample_type);
-        let available_modes = vec![
+        let current_sample_mode = format!("{:?}", state.sample_type);
+        let available_sample_modes = vec![
             "Saru".to_string(),
             "Plane".to_string(),
             "Cube".to_string(),
@@ -140,9 +151,17 @@ fn sync_telemetry_cache(sample_state: Option<Res<SampleState>>) {
             "Belt".to_string(),
             "Emitter1".to_string(),
         ];
+        let current_material_mode = format!("{:?}", state.material_type);
+        let available_material_modes = vec![
+            "User".to_string(),
+            "UserExtended".to_string(),
+            "UvTest1024".to_string(),
+        ];
         crate::api_shared::update_app_status(crate::api_shared::AppStatus {
-            current_mode,
-            available_modes,
+            current_sample_mode,
+            available_sample_modes,
+            current_material_mode,
+            available_material_modes,
         });
     }
 }

@@ -3,13 +3,16 @@ use std::sync::{OnceLock, Mutex, RwLock};
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ApiCommand {
     Reload,
-    SelectMode(String),
+    SelectSampleMode(String),
+    SelectMaterialMode(String),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct AppStatus {
-    pub current_mode: String,
-    pub available_modes: Vec<String>,
+    pub current_sample_mode: String,
+    pub available_sample_modes: Vec<String>,
+    pub current_material_mode: String,
+    pub available_material_modes: Vec<String>,
 }
 
 static COMMAND_QUEUE: OnceLock<Mutex<Vec<ApiCommand>>> = OnceLock::new();

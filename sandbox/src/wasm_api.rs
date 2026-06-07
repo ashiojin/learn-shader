@@ -50,6 +50,11 @@ pub fn reload_shaders_js() {
 }
 
 #[wasm_bindgen]
-pub fn select_mode_js(mode: &str) {
-    crate::api_shared::send_command(crate::api_shared::ApiCommand::SelectMode(mode.to_string()));
+pub fn select_sample_mode_js(mode: &str) {
+    crate::api_shared::send_command(crate::api_shared::ApiCommand::SelectSampleMode(mode.to_string()));
+}
+
+#[wasm_bindgen]
+pub fn select_material_mode_js(mode: &str) {
+    crate::api_shared::send_command(crate::api_shared::ApiCommand::SelectMaterialMode(mode.to_string()));
 }
