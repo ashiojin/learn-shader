@@ -68,7 +68,7 @@
         height: 640px;
         width: 640px;
     }
-    .control {
+    .editor {
         display: grid;
         height: 640px;
         width: 640px;
@@ -83,6 +83,19 @@
         width: 100%;
         height: 100%;
     }
+    .controller {
+        display: grid;
+        height: 640px;
+        width: 640px;
+        grid-template-columns: auto;
+        grid-template-rows: 1.2em auto;
+    }
+    .result_get_status {
+        min-height: 1em;
+        max-width: 1em;
+        background-color: #1e1e1e;
+        color: #fefefe;
+    }
 
 
 </style>
@@ -90,7 +103,14 @@
 
 <body style="margin: 0px; background-color: #040404;">
     <script type="module">
-    import init, { start, read_wgsl, write_wgsl } from './sandbox.js'
+    import init, {
+        start,
+        read_wgsl,
+        write_wgsl,
+        get_status_js,
+        select_mode_js,
+        send_command_js
+    } from './sandbox.js'
 
     async function on_load() {
         let wasm = await init().catch((error) => {
@@ -164,6 +184,15 @@
         tab_custom_material.addEventListener('change', tab_changed)
         tab_extended_material.addEventListener('change', tab_changed)
         tab_changed()
+
+        // enable controller
+        // - get_status
+        let btn_get_status = document.getElementById('btn_get_status')
+        btn_get_status.addEventListener('click', (ev) => {
+            read_app_status()
+        })
+        btn_get_status.disabled = null;
+
     }
 
     function read_custom_material_wgsl() {
@@ -192,6 +221,12 @@
         write_wgsl('ExtendedMaterial', wasm)
     }
 
+    function read_app_status() {
+        let status = get_status_js()
+        let div = document.getElementById('result_get_status')
+        div.textContent = JSON.stringify(status)
+    }
+
     window.addEventListener('load', (e) => {
         on_load()
     })
@@ -203,7 +238,7 @@
             <canvas id="bevy" class="bevy-canvas hide-before-start"></canvas>
             <button id="open" type="button" class="big" disabled>Loading...</button>
         </div>
-        <div class="control">
+        <div class="editor">
             <div class="tabs">
                 <input type="radio" name="tab-radio" id="tab_custom_material" class="tab-radio" value="Custom Material" disabled checked>
                 <label for="tab_custom_material">Custom Material</label>
@@ -223,6 +258,12 @@
                     <input type="button" id="extended_material_apply" class="wgsl_btn" value="Apply" disabled>
                     <input type="button" id="extended_material_read" class="wgsl_btn" value="Read" disabled>
                 </div>
+            </div>
+        </div>
+        <div class="controller"> <!-- now testing -->
+            <div>
+                <div id="result_get_status" class="result_get_status"></div>
+                <input type="button" id="btn_get_status" value="Get Status" disabled>
             </div>
         </div>
     </div>

@@ -25,10 +25,7 @@ use crate::{
     sample::{SamplePlugin, SampleState, extended_material::ReloadReq, init_globals, reload_shaders},
 };
 
-pub static WASM_RELOAD_REQUESTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-#[derive(Resource)]
-struct ApiReceiver(std::sync::Mutex<std::sync::mpsc::Receiver<()>>);
+pub mod api_shared;
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen::prelude::wasm_bindgen]
@@ -43,14 +40,10 @@ fn main() {
 }
 
 fn run_app() {
-    let (reload_tx, reload_rx) = std::sync::mpsc::channel();
-
     #[cfg(not(target_arch = "wasm32"))]
     std::thread::spawn(move || {
-        api::spawn_api_server(reload_tx);
+        api::spawn_api_server();
     });
-    #[cfg(target_arch = "wasm32")]
-    let _ = reload_tx;
 
     let asset_root_path = std::env::var("ASSETS_DIR").unwrap_or("assets".into());
     let default_plugin =
@@ -90,9 +83,8 @@ fn run_app() {
         .insert_resource(ConfigState::default())
         .insert_resource(BackgroundState::default())
         .insert_resource(LightState::default())
-        .insert_resource(ApiReceiver(std::sync::Mutex::new(reload_rx)))
         .add_systems(Startup, (setup,))
-        .add_systems(Update, (react_to_keyevent, draw_gizmo, poll_api_reload))
+        .add_systems(Update, (react_to_keyevent, draw_gizmo, poll_api_commands, sync_telemetry_cache))
         .add_systems(Update, update_camera_follower)
         .add_systems(Update, update_rotate_light)
         .add_systems(
@@ -103,19 +95,55 @@ fn run_app() {
         .run();
 }
 
-fn poll_api_reload(api_receiver: Option<Res<ApiReceiver>>, mut reload_reqs: MessageWriter<ReloadReq>) {
-    if let Some(api_receiver) = api_receiver {
-        if let Ok(receiver) = api_receiver.0.lock()
-            && receiver.try_recv().is_ok()
-        {
-            reload_reqs.write(ReloadReq);
-            info!("Reload requested via API");
+fn poll_api_commands(
+    mut reload_reqs: MessageWriter<ReloadReq>,
+    mut sample_state: Option<ResMut<SampleState>>,
+) {
+    for cmd in crate::api_shared::pop_commands() {
+        match cmd {
+            crate::api_shared::ApiCommand::Reload => {
+                reload_reqs.write(ReloadReq);
+                info!("Reload requested via unified API");
+            }
+            crate::api_shared::ApiCommand::SelectMode(mode) => {
+                info!("API requested mode selection: {}", mode);
+                if let Some(state) = sample_state.as_deref_mut() {
+                    match mode.as_str() {
+                        "Saru" => state.sample_type = crate::sample::state::SampleType::Saru,
+                        "Plane" => state.sample_type = crate::sample::state::SampleType::Plane,
+                        "Cube" => state.sample_type = crate::sample::state::SampleType::Cube,
+                        "Cone" => state.sample_type = crate::sample::state::SampleType::Cone,
+                        "Sphere" => state.sample_type = crate::sample::state::SampleType::Sphere,
+                        "Ring" => state.sample_type = crate::sample::state::SampleType::Ring,
+                        "SphericalZone" => state.sample_type = crate::sample::state::SampleType::SphericalZone,
+                        "Belt" => state.sample_type = crate::sample::state::SampleType::Belt,
+                        "Emitter1" => state.sample_type = crate::sample::state::SampleType::Emitter1,
+                        _ => warn!("Unknown mode requested via API: {}", mode),
+                    }
+                }
+            }
         }
     }
+}
 
-    if WASM_RELOAD_REQUESTED.swap(false, std::sync::atomic::Ordering::Relaxed) {
-        reload_reqs.write(ReloadReq);
-        info!("Reload requested via WASM JS API");
+fn sync_telemetry_cache(sample_state: Option<Res<SampleState>>) {
+    if let Some(state) = sample_state {
+        let current_mode = format!("{:?}", state.sample_type);
+        let available_modes = vec![
+            "Saru".to_string(),
+            "Plane".to_string(),
+            "Cube".to_string(),
+            "Cone".to_string(),
+            "Sphere".to_string(),
+            "Ring".to_string(),
+            "SphericalZone".to_string(),
+            "Belt".to_string(),
+            "Emitter1".to_string(),
+        ];
+        crate::api_shared::update_app_status(crate::api_shared::AppStatus {
+            current_mode,
+            available_modes,
+        });
     }
 }
 

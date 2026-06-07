@@ -5,28 +5,27 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Router,
+    Json, Router,
 };
-use std::sync::mpsc::Sender;
 use tower_http::cors::Any;
 use tower_http::cors::CorsLayer;
 
 #[derive(Clone)]
-struct AppState {
-    reload_tx: Sender<()>,
-}
+struct AppState;
 
-pub fn spawn_api_server(reload_tx: Sender<()>) {
+pub fn spawn_api_server() {
     let port = std::env::var("API_PORT")
         .unwrap_or_else(|_| "3000".to_string())
         .parse::<u16>()
         .expect("API_PORT must be a valid u16");
 
-    let state = AppState { reload_tx };
+    let state = AppState;
 
     let app = Router::new()
         .route("/wgsl/:type", get(read_wgsl))
         .route("/wgsl/:type", post(write_wgsl))
+        .route("/status", get(get_status))
+        .route("/command", post(post_command))
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)
@@ -49,6 +48,19 @@ pub fn spawn_api_server(reload_tx: Sender<()>) {
     });
 }
 
+async fn get_status() -> impl IntoResponse {
+    let status = crate::api_shared::get_app_status();
+    (StatusCode::OK, Json(status))
+}
+
+async fn post_command(
+    State(_state): State<AppState>,
+    Json(cmd): Json<crate::api_shared::ApiCommand>,
+) -> impl IntoResponse {
+    crate::api_shared::send_command(cmd);
+    (StatusCode::OK, "Command queued")
+}
+
 async fn read_wgsl(Path(shader_type): Path<String>) -> impl IntoResponse {
     if shader_type == "ExtendedMaterial" {
         (StatusCode::OK, crate::sample::extended_material::read_global_res())
@@ -61,16 +73,16 @@ async fn read_wgsl(Path(shader_type): Path<String>) -> impl IntoResponse {
 
 async fn write_wgsl(
     Path(shader_type): Path<String>,
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     body: String,
 ) -> impl IntoResponse {
     if shader_type == "ExtendedMaterial" {
         crate::sample::extended_material::write_global_res(&body);
-        let _ = state.reload_tx.send(());
+        crate::api_shared::send_command(crate::api_shared::ApiCommand::Reload);
         (StatusCode::OK, "WGSL updated".to_string())
     } else if shader_type == "CustomMaterial" {
         crate::sample::material::write_custom_material(&body);
-        let _ = state.reload_tx.send(());
+        crate::api_shared::send_command(crate::api_shared::ApiCommand::Reload);
         (StatusCode::OK, "WGSL updated".to_string())
     } else {
         (StatusCode::NOT_FOUND, "Unknown shader type".to_string())

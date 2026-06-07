@@ -16,12 +16,6 @@ pub fn change_background(
     for entity in q_background.iter() {
         commands.entity(entity).despawn();
     }
-    // background.spawn(
-    //     &mut commands,
-    //     &mut meshes,
-    //     &mut materials,
-    //     &mut images,
-    // );
     match *background {
         BackgroundState::None => {
             // do nothing
