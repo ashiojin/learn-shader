@@ -113,6 +113,10 @@
         send_command_js
     } from './sandbox.js'
 
+    let g_ui_state = {
+        initialized_get_status: false // get_status_js() will return empty string and array until the app is fully initialized.
+    }
+
     async function on_load() {
         let wasm = await init().catch((error) => {
             if (!error.message.startsWith("Using exceptions for control flow, don't mind me. This isn't actually an error!")) {
@@ -133,6 +137,8 @@
 
     async function open() {
         start()
+
+        let bevy_canvas = document.getElementById('bevy')
 
         // enable buttons
         // - custom material
@@ -188,12 +194,33 @@
 
         // enable controller
         // - get_status
-        let btn_get_status = document.getElementById('btn_get_status')
-        btn_get_status.addEventListener('click', (ev) => {
-            read_app_status()
-        })
-        btn_get_status.disabled = null;
+        // let btn_get_status = document.getElementById('btn_get_status')
+        // btn_get_status.addEventListener('click', (ev) => {
+        //     test_read_app_status()
+        // })
+        // btn_get_status.disabled = null;
 
+        // - modes
+        pool_initialization()
+        // re-sync when bevy-canvas gets/loses focus
+        bevy_canvas.addEventListener('focus', pool_app_status_when_canvas_focused)
+        bevy_canvas.addEventListener('blur', read_and_sync_app_modes)
+        let sample_mode_select = document.getElementById('selector_sample_mode')
+        let material_mode_select = document.getElementById('selector_material_mode')
+        sample_mode_select.addEventListener('change', (ev) => {
+            let mode = sample_mode_select.value
+            if (mode == '') {
+                return
+            }
+            select_sample_mode_js(mode)
+        })
+        material_mode_select.addEventListener('change', (ev) => {
+            let mode = material_mode_select.value
+            if (mode == '') {
+                return
+            }
+            select_material_mode_js(mode)
+        })
     }
 
     function read_custom_material_wgsl() {
@@ -222,11 +249,77 @@
         write_wgsl('ExtendedMaterial', wasm)
     }
 
-    function read_app_status() {
+    function test_read_app_status() {
         let status = get_status_js()
         let div = document.getElementById('result_get_status')
         div.textContent = JSON.stringify(status)
+        console.log(status)
     }
+
+    function read_and_sync_app_modes() {
+        let status_str = get_status_js()
+        /* (String)
+        {"current_sample_mode":"Saru","available_sample_modes":["Saru","Plane","Cube","Cone","Sphere","Ring","SphericalZone","Belt","Emitter1"],"current_material_mode":"User","available_material_modes":["User","UserExtended","UvTest1024"]}
+        */
+        let status = JSON.parse(status_str)
+        //console.log('status:', status)
+        let sample_mode_select = document.getElementById('selector_sample_mode')
+        let material_mode_select = document.getElementById('selector_material_mode')
+
+        // make options
+        sample_mode_select.innerHTML = ''
+        for (let mode of status.available_sample_modes) {
+            let id = `sample_mode_${mode}`
+            let option = document.createElement('option')
+            option.value = mode
+            option.textContent = mode
+            if (mode === status.current_sample_mode) {
+                option.selected = true
+            }
+            sample_mode_select.appendChild(option)
+        }
+        material_mode_select.innerHTML = ''
+        for (let mode of status.available_material_modes) {
+            let id = `material_mode_${mode}`
+            let option = document.createElement('option')
+            option.value = mode
+            option.textContent = mode
+            if (mode === status.current_material_mode) {
+                option.selected = true
+            }
+            material_mode_select.appendChild(option)
+        }
+
+        // ui-status update
+        if (status.available_material_modes.length > 0) {
+            g_ui_state.initialized_get_status = true
+        }
+    }
+
+    function pool_initialization() {
+        // repeatedly read_and_sync_app_modes until it makes g_ui_state.initialized_get_status true, with 1s interval.
+        let interval_id = setInterval(() => {
+            if (g_ui_state.initialized_get_status) {
+                clearInterval(interval_id)
+            } else {
+                read_and_sync_app_modes()
+            }
+        }, 1000)
+    }
+
+    function pool_app_status_when_canvas_focused() {
+        let bevy_canvas = document.getElementById('bevy')
+        let interval_id = setInterval(() => {
+            if (document.activeElement !== bevy_canvas) {
+                clearInterval(interval_id)
+            } else {
+                read_and_sync_app_modes()
+            }
+        }, 1000)
+    }
+
+
+
 
     window.addEventListener('load', (e) => {
         on_load()
@@ -261,11 +354,21 @@
                 </div>
             </div>
         </div>
-        <div class="controller"> <!-- now testing -->
+        <div class="controller">
+            <div>
+                <label for="selector_sample_mode">Sample Mode:</label>
+                <select id="selector_sample_mode">
+                </select>
+                <label for="selector_material_mode">Material Mode:</label>
+                <select id="selector_material_mode">
+                </select>
+            </div>
+            <!--
             <div>
                 <div id="result_get_status" class="result_get_status"></div>
                 <input type="button" id="btn_get_status" value="Get Status" disabled>
             </div>
+            -->
         </div>
     </div>
 </body>

@@ -33,17 +33,17 @@ impl SampleType {
 #[derive(Debug, Default, Eq, PartialEq, Clone, Copy)]
 pub enum SampleMaterialType {
     #[default]
-    User,
-    UserExtended,
-    UvTest1024,
+    CustomMaterial,
+    ExtendedMaterial,
+    UvTexture,
 }
 
 impl SampleMaterialType {
     pub fn get_next(&self) -> Self {
         match self {
-            SampleMaterialType::User => SampleMaterialType::UvTest1024,
-            SampleMaterialType::UvTest1024 => SampleMaterialType::UserExtended,
-            SampleMaterialType::UserExtended => SampleMaterialType::User,
+            SampleMaterialType::CustomMaterial => SampleMaterialType::UvTexture,
+            SampleMaterialType::UvTexture => SampleMaterialType::ExtendedMaterial,
+            SampleMaterialType::ExtendedMaterial => SampleMaterialType::CustomMaterial,
         }
     }
 }

@@ -98,7 +98,7 @@ pub fn insert_sample_material(
         }
         // add material
         match sample_state.material_type {
-            SampleMaterialType::User => {
+            SampleMaterialType::CustomMaterial => {
                 commands
                     .entity(entity)
                     .try_insert(MeshMaterial3d(custom_materials.add(CustomMaterial {
@@ -106,7 +106,7 @@ pub fn insert_sample_material(
                         ..default()
                     })));
             }
-            SampleMaterialType::UserExtended => {
+            SampleMaterialType::ExtendedMaterial => {
                 let base_material = StandardMaterial {
                     base_color: css::LIGHT_GRAY.into(),
                     alpha_mode: AlphaMode::Blend, // TODO:
@@ -123,7 +123,7 @@ pub fn insert_sample_material(
                     .entity(entity)
                     .try_insert(MeshMaterial3d(extended_materials.add(material)));
             }
-            SampleMaterialType::UvTest1024 => {
+            SampleMaterialType::UvTexture => {
                 let texture_handle = asset_server.load(myshaderlib::path_to_uv_test1024());
                 let material = StandardMaterial {
                     base_color_texture: Some(texture_handle),
@@ -202,7 +202,7 @@ pub fn apply_sandbox_materials(
         // 2. add a custom material according to the sample state
         let material_type = sample_state.material_type;
         match material_type {
-            SampleMaterialType::User => {
+            SampleMaterialType::CustomMaterial => {
                 let custom_material = CustomMaterial {
                     spawned_at: time.elapsed_secs(),
                     ..default()
@@ -210,7 +210,7 @@ pub fn apply_sandbox_materials(
                 let asset_handle = custom_materials.add(custom_material);
                 commands.entity(entity).insert(MeshMaterial3d(asset_handle));
             }
-            SampleMaterialType::UserExtended => {
+            SampleMaterialType::ExtendedMaterial => {
                 let base_material = standard_material.unwrap_or(StandardMaterial {
                     base_color: css::LIGHT_GRAY.into(),
                     alpha_mode: AlphaMode::Blend,
@@ -226,7 +226,7 @@ pub fn apply_sandbox_materials(
                 let asset_handle = extended_materials.add(material);
                 commands.entity(entity).insert(MeshMaterial3d(asset_handle));
             }
-            SampleMaterialType::UvTest1024 => {
+            SampleMaterialType::UvTexture => {
                 let texture_handle = asset_server.load(myshaderlib::path_to_uv_test1024());
                 let material = StandardMaterial {
                     base_color_texture: Some(texture_handle),

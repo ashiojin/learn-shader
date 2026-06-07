@@ -126,9 +126,9 @@ fn poll_api_commands(
                 info!("API requested material mode selection: {}", mode);
                 if let Some(state) = sample_state.as_deref_mut() {
                     match mode.as_str() {
-                        "User" => state.material_type = crate::sample::state::SampleMaterialType::User,
-                        "UserExtended" => state.material_type = crate::sample::state::SampleMaterialType::UserExtended,
-                        "UvTest1024" => state.material_type = crate::sample::state::SampleMaterialType::UvTest1024,
+                        "CustomMaterial" => state.material_type = crate::sample::state::SampleMaterialType::CustomMaterial,
+                        "ExtendedMaterial" => state.material_type = crate::sample::state::SampleMaterialType::ExtendedMaterial,
+                        "UvTexture" => state.material_type = crate::sample::state::SampleMaterialType::UvTexture,
                         _ => warn!("Unknown material mode requested via API: {}", mode),
                     }
                 }
@@ -153,9 +153,9 @@ fn sync_telemetry_cache(sample_state: Option<Res<SampleState>>) {
         ];
         let current_material_mode = format!("{:?}", state.material_type);
         let available_material_modes = vec![
-            "User".to_string(),
-            "UserExtended".to_string(),
-            "UvTest1024".to_string(),
+            "CustomMaterial".to_string(),
+            "ExtendedMaterial".to_string(),
+            "UvTexture".to_string(),
         ];
         crate::api_shared::update_app_status(crate::api_shared::AppStatus {
             current_sample_mode,
