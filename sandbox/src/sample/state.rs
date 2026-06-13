@@ -4,6 +4,7 @@ use bevy::prelude::*;
 pub enum SampleType {
     #[default]
     Saru,
+    ArmAndRod,
     Plane,
     Cube,
     Cone,
@@ -17,7 +18,8 @@ pub enum SampleType {
 impl SampleType {
     pub fn get_next(&self) -> Self {
         match self {
-            SampleType::Saru => SampleType::Plane,
+            SampleType::Saru => SampleType::ArmAndRod,
+            SampleType::ArmAndRod => SampleType::Plane,
             SampleType::Plane => SampleType::Cube,
             SampleType::Cube => SampleType::Cone,
             SampleType::Cone => SampleType::Sphere,

@@ -19,10 +19,12 @@ use camera::SatelliteCamera;
 use crate::{
     background::change_background,
     camera::{ZoomDirection, update_camera_follower},
-    config::{ConfigState, draw_gizmo},
+    config::{ConfigState, draw_gizmo, draw_gizmo_for_trail_meshes},
     light::{LightState, change_light, update_rotate_light},
     random::RandomPlugin,
-    sample::{SamplePlugin, SampleState, extended_material::ReloadReq, init_globals, reload_shaders},
+    sample::{
+        SamplePlugin, SampleState, extended_material::ReloadReq, init_globals, reload_shaders,
+    },
 };
 
 pub mod api_shared;
@@ -46,36 +48,34 @@ fn run_app() {
     });
 
     let asset_root_path = std::env::var("ASSETS_DIR").unwrap_or("assets".into());
-    let default_plugin =
-            DefaultPlugins
-                .set(AssetPlugin {
-                    file_path: asset_root_path,
-                    //watch_for_changes_override: Some(true),
-                    ..Default::default()
-                })
-                .set(WindowPlugin {
-                    primary_window: Some(Window {
-                        resolution: (640, 640).into(),
-                        resize_constraints: WindowResizeConstraints {
-                            min_width: 640.0,
-                            min_height: 640.0,
-                            max_width: 640.0,
-                            max_height: 640.0,
-                        },
-                        canvas: Some("#bevy".to_owned()), // only used for wasm, but doesn't hurt to set it for native
-                        fit_canvas_to_parent: true, // only used for wasm, but doesn't hurt to set it for native
-                        ..default()
-                    }),
-                    ..default()
-                })
-                .build();
+    let default_plugin = DefaultPlugins
+        .set(AssetPlugin {
+            file_path: asset_root_path,
+            //watch_for_changes_override: Some(true),
+            ..Default::default()
+        })
+        .set(WindowPlugin {
+            primary_window: Some(Window {
+                resolution: (640, 640).into(),
+                resize_constraints: WindowResizeConstraints {
+                    min_width: 640.0,
+                    min_height: 640.0,
+                    max_width: 640.0,
+                    max_height: 640.0,
+                },
+                canvas: Some("#bevy".to_owned()), // only used for wasm, but doesn't hurt to set it for native
+                fit_canvas_to_parent: true, // only used for wasm, but doesn't hurt to set it for native
+                ..default()
+            }),
+            ..default()
+        })
+        .build();
     // #[cfg(target_family = "wasm")]
     // let default_plugin = default_plugin.disable::<LogPlugin>();
 
     App::new()
         .add_plugins((
-                default_plugin
-                ,
+            default_plugin,
             myshaderlib::MyShaderLibPlugin,
             RandomPlugin,
             SamplePlugin,
@@ -84,7 +84,16 @@ fn run_app() {
         .insert_resource(BackgroundState::default())
         .insert_resource(LightState::default())
         .add_systems(Startup, (setup,))
-        .add_systems(Update, (react_to_keyevent, draw_gizmo, poll_api_commands, sync_telemetry_cache))
+        .add_systems(
+            Update,
+            (
+                react_to_keyevent,
+                draw_gizmo,
+                draw_gizmo_for_trail_meshes,
+                poll_api_commands,
+                sync_telemetry_cache,
+            ),
+        )
         .add_systems(Update, update_camera_follower)
         .add_systems(Update, update_rotate_light)
         .add_systems(
@@ -115,9 +124,13 @@ fn poll_api_commands(
                         "Cone" => state.sample_type = crate::sample::state::SampleType::Cone,
                         "Sphere" => state.sample_type = crate::sample::state::SampleType::Sphere,
                         "Ring" => state.sample_type = crate::sample::state::SampleType::Ring,
-                        "SphericalZone" => state.sample_type = crate::sample::state::SampleType::SphericalZone,
+                        "SphericalZone" => {
+                            state.sample_type = crate::sample::state::SampleType::SphericalZone
+                        }
                         "Belt" => state.sample_type = crate::sample::state::SampleType::Belt,
-                        "Emitter1" => state.sample_type = crate::sample::state::SampleType::Emitter1,
+                        "Emitter1" => {
+                            state.sample_type = crate::sample::state::SampleType::Emitter1
+                        }
                         _ => warn!("Unknown sample mode requested via API: {}", mode),
                     }
                 }
@@ -126,9 +139,18 @@ fn poll_api_commands(
                 info!("API requested material mode selection: {}", mode);
                 if let Some(state) = sample_state.as_deref_mut() {
                     match mode.as_str() {
-                        "CustomMaterial" => state.material_type = crate::sample::state::SampleMaterialType::CustomMaterial,
-                        "ExtendedMaterial" => state.material_type = crate::sample::state::SampleMaterialType::ExtendedMaterial,
-                        "UvTexture" => state.material_type = crate::sample::state::SampleMaterialType::UvTexture,
+                        "CustomMaterial" => {
+                            state.material_type =
+                                crate::sample::state::SampleMaterialType::CustomMaterial
+                        }
+                        "ExtendedMaterial" => {
+                            state.material_type =
+                                crate::sample::state::SampleMaterialType::ExtendedMaterial
+                        }
+                        "UvTexture" => {
+                            state.material_type =
+                                crate::sample::state::SampleMaterialType::UvTexture
+                        }
                         _ => warn!("Unknown material mode requested via API: {}", mode),
                     }
                 }

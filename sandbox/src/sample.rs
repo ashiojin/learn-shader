@@ -4,6 +4,7 @@ mod billboard;
 pub mod emitter;
 pub mod extended_material;
 pub mod material;
+pub mod scene_mod;
 pub mod spawner;
 pub mod state;
 
@@ -16,7 +17,15 @@ pub use state::{SampleModel, SampleState};
 
 use my_meshes::FlatRing3d;
 
-use crate::sample::{billboard::add_billboard_component, emitter::spawn_single_gltf_scene, extended_material::{ReloadReq, init_extended_material_global, load_global_res, request_load_extended_material}, material::init_custom_material_global};
+use crate::sample::{
+    billboard::add_billboard_component,
+    emitter::{auto_play, spawn_single_gltf_scene, spawn_trail_from_emmiter},
+    extended_material::{
+        ReloadReq, init_extended_material_global, load_global_res, request_load_extended_material,
+    },
+    material::{apply_sandbox_fx_meshes, init_custom_material_global},
+    scene_mod::update_trail_emitter_positions,
+};
 
 pub struct SamplePlugin;
 
@@ -31,6 +40,7 @@ pub fn init_globals() {
 impl Plugin for SamplePlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<material::SandboxExtension>();
+        app.register_type::<material::SandboxMeshFxConfigExtension>();
 
         #[cfg(target_family = "wasm")]
         bevy::tasks::block_on(async {
@@ -53,14 +63,19 @@ impl Plugin for SamplePlugin {
                 crate::sample::material::ReplaceMaterialGltfExtensionHandler,
             ));
 
-
         app.add_plugins((
             MaterialPlugin::<CustomMaterial>::default(),
             extended_material::MyExtendedMaterialPlugin::default(),
         ))
         .add_message::<ReloadReq>()
         .insert_resource(SampleState::default())
-        .add_systems(Startup, (request_load_extended_material, material::request_load_custom_material))
+        .add_systems(
+            Startup,
+            (
+                request_load_extended_material,
+                material::request_load_custom_material,
+            ),
+        )
         .add_systems(Update, (load_global_res, material::load_custom_material))
         .add_systems(
             Update,
@@ -71,6 +86,7 @@ impl Plugin for SamplePlugin {
             (
                 insert_sample_material,
                 apply_sandbox_materials,
+                apply_sandbox_fx_meshes,
                 add_billboard_component,
             ),
         )
@@ -83,6 +99,13 @@ impl Plugin for SamplePlugin {
                 spawn_single_gltf_scene,
             )
                 .chain(),
+        )
+        .add_systems(
+            Update,
+            (
+                auto_play,
+                (update_trail_emitter_positions, spawn_trail_from_emmiter).chain(),
+            ),
         )
         .add_systems(
             PostUpdate,

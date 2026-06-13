@@ -1,8 +1,11 @@
-use bevy::prelude::*;
+use std::thread::current;
+
+use bevy::{color::palettes::css, prelude::*};
+use my_meshes::Belt;
 use rand::distr::Distribution;
 
 use super::state::SampleModel;
-use crate::{random::RandomSource};
+use crate::{random::RandomSource, sample::scene_mod::{AutoAnimation, CurrentTrailPositions, PreviousTrailPositions, TrailEmitter}};
 
 #[derive(Component, Debug, Clone)]
 pub struct SingleMeshEmitter {
@@ -131,19 +134,101 @@ pub struct SingleGltfEmitter {
     pub scene_idx: usize,
 }
 
+#[derive(Component, Debug, Clone)]
+pub struct AutoPlay(AnimationNodeIndex, bool, AnimationGraphHandle);
+
 pub fn spawn_single_gltf_scene(
     mut commands: Commands,
-    query: Query<(Entity, &SingleGltfEmitter, &Transform), Added<SingleGltfEmitter>>,
+    mut query: Query<(Entity, &SingleGltfEmitter, &Transform, Option<&AutoAnimation>), Added<SingleGltfEmitter>>,
     asset_server: Res<AssetServer>,
+    mut animation_graphs: ResMut<Assets<AnimationGraph>>,
 ) {
-    for (_entity, emitter, transform) in query.iter() {
-        commands.spawn((
+    for (_entity, emitter, transform, o_anime) in query.iter_mut() {
+        info!("spawn_single_gltf_scene: {:?}, {:?}, {:?}", emitter.gltf_path, emitter.scene_idx, o_anime);
+        let cmd = &mut commands.spawn((
             SceneRoot(asset_server.load(
                 GltfAssetLabel::Scene(emitter.scene_idx).from_asset(
                 emitter.gltf_path.clone()),
             )),
             *transform,
             SampleModel::Scene,
+        ));
+
+        if let Some(anime) = o_anime {
+            // Add animation graph
+            let mut animation_grpah = AnimationGraph::new();
+            let h_clip = asset_server.load(GltfAssetLabel::Animation(anime.clip_index()).from_asset(emitter.gltf_path.clone()));
+            let node = animation_grpah.add_clip(h_clip, 1.0, animation_grpah.root);
+            let h_graph = animation_graphs.add(animation_grpah);
+            //let cmd = cmd.insert(AnimationGraphHandle(h_graph));
+
+            match anime.animation_type() {
+                crate::sample::scene_mod::AnimationType::Repeat => {
+                    cmd.insert(AutoPlay(node, true, AnimationGraphHandle(h_graph)));
+                }
+            }
+
+            info!("Added animation graph: {:?}, node: {:?}, clip_index: {:?}, animation_type: {:?}", cmd.id(), node, anime.clip_index(), anime.animation_type());
+        }
+    }
+}
+
+pub fn auto_play(
+    mut commands: Commands,
+    mut q_animation_players: Query<(Entity, &mut AnimationPlayer), Added<AnimationPlayer>>,
+    q_auto_play: Query<(Entity, &AutoPlay)>,
+    q_children: Query<&ChildOf>,
+) {
+    for (entity, mut player) in q_animation_players.iter_mut() {
+        info!("Checking AutoPlay for entity {:?} with AnimationPlayer", entity);
+         if let Some((_e, auto_play)) = q_children.iter_ancestors(entity).find_map(|ancestor| {
+            q_auto_play.get(ancestor).ok()
+         }) {
+            info!("Found AutoPlay for entity {:?}, node: {:?}, looped: {:?}", entity, auto_play.0, auto_play.1);
+            commands.entity(entity).insert(auto_play.2.clone());
+
+            if auto_play.1 {
+                player.play(auto_play.0).repeat();
+            } else {
+                player.play(auto_play.0);
+            }
+         }
+    }
+}
+
+pub fn spawn_trail_from_emmiter(
+    mut commands: Commands,
+    query: Query<(Entity, &TrailEmitter, &CurrentTrailPositions, &PreviousTrailPositions)>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    time: Res<Time>,
+    mut gizmos: Gizmos,
+
+) {
+    // Make a `Belt` between the current and previous positions of the emitter, and spawn a mesh for it. The mesh should have a lifetime equal to the trail lifetime of the emitter.
+    for (_entity, trail_emitter, current_pos, previous_pos) in query.iter() {
+        let org = current_pos.begin(); // for transform of the mesh entity
+        let v_c = Vec3::ZERO; // current_pos.begin() - current_pos.begin() = Vec3::ZERO, we will use the `org` as the origin of the mesh, so the current position will be at (0, 0, 0) in the local space of the mesh
+        let d_c = current_pos.end() - current_pos.begin();
+        let v_p = previous_pos.begin() - org;
+        let d_p = previous_pos.end() - previous_pos.begin();
+        let w = v_p.length();
+
+        commands.spawn((
+            Mesh3d(meshes.add(
+                Belt::new(v_p, Dir3::new(d_p).unwrap(), v_c, Dir3::new(d_c).unwrap(), w)
+                // TODO: We want to specify additionally the width of the belt at the start and end
+                // positions separately, to allow for tapering the trail. For now we will just use the same width for both ends.
+                // We also need to add timestamps to the vertices to allow fading out the trail
+                // over time in the shader. So we will need another meshable shape that allows us to specify custom vertex attributes.
+                    .with_resolution(8)
+                    .mesh(),
+            )),
+            Transform::from_translation(org),
+            MeshLifetime {
+                lifetime: trail_emitter.trail_lifetime(),
+                spwawned_at: time.elapsed_secs(),
+            },
+            SampleModel::Mesh,
         ));
     }
 }

@@ -1,6 +1,9 @@
-use crate::sample::emitter::{
-    MeshLifetimePattern, RandomPositionEmitter, SingleGltfEmitter, SingleMeshEmitter,
-    SpawnPattern,
+use crate::sample::{
+    emitter::{
+        MeshLifetimePattern, RandomPositionEmitter, SingleGltfEmitter, SingleMeshEmitter,
+        SpawnPattern,
+    },
+    scene_mod::{AnimationType, AutoAnimation},
 };
 use bevy::prelude::*;
 use my_meshes::{self as meshes, Belt};
@@ -19,6 +22,17 @@ pub fn spawn_sample(sample_type: &SampleType, commands: &mut Commands, meshes: &
                 },
                 Transform::from_xyz(0., 0., 0.),
                 SampleEmitter,
+            ));
+        }
+        SampleType::ArmAndRod => {
+            commands.spawn((
+                SingleGltfEmitter {
+                    gltf_path: "models/poc_arm_and_rod_ex.glb".to_string(),
+                    scene_idx: 0,
+                },
+                Transform::from_xyz(0., 0., 0.).with_scale(Vec3::new(0.3, 0.3, 0.3)),
+                SampleEmitter,
+                AutoAnimation::new(1, AnimationType::Repeat),
             ));
         }
         SampleType::Plane => {

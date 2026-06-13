@@ -10,6 +10,7 @@ use super::state::{SampleMaterialType, SampleState};
 use crate::sample::extended_material::{
     MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension, ReloadReq,
 };
+use crate::sample::scene_mod::TrailEmitter;
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone, Default)]
 pub struct CustomMaterial {
@@ -144,7 +145,15 @@ pub struct SandboxExtension {
     pub param1: [f32; 4],
 }
 
-const EXTENSION_NAME: &str = "ASHIOJIN_material_sandbox";
+const EXTENSION_MATERIAL_NAME: &str = "ASHIOJIN_material_sandbox";
+
+#[derive(Component, Reflect, Default, serde::Deserialize, Debug, Clone)]
+#[reflect(Component)]
+pub struct SandboxMeshFxConfigExtension {
+    pub is_fx_mesh: bool,
+    pub fx_type: String,
+}
+const EXTENSION_MESH_FX_CONFIG_NAME: &str = "ASHIOJIN_mesh_fx_config";
 
 #[derive(Default, Clone)]
 pub struct ReplaceMaterialGltfExtensionHandler;
@@ -157,11 +166,11 @@ impl bevy::gltf::extensions::GltfExtensionHandler for ReplaceMaterialGltfExtensi
         &mut self,
         _load_context: &mut bevy::asset::LoadContext<'_>,
         _primitive: &gltf::Primitive,
-        _mesh: &gltf::Mesh,
+        mesh: &gltf::Mesh,
         material: &gltf::Material,
         entity: &mut EntityWorldMut,
     ) {
-        if let Some(extension_value) = material.extension_value(EXTENSION_NAME) {
+        if let Some(extension_value) = material.extension_value(EXTENSION_MATERIAL_NAME) {
             let sandbox_extension: SandboxExtension =
                 serde_json::from_value(extension_value.clone())
                     .expect("Failed to parse ASHIOJIN_material_sandbox extension");
@@ -173,6 +182,14 @@ impl bevy::gltf::extensions::GltfExtensionHandler for ReplaceMaterialGltfExtensi
                 info!("{t:?}");
             }
         }
+        if let Some(extension_value) = mesh.extension_value(EXTENSION_MESH_FX_CONFIG_NAME) {
+            let mesh_fx_config_extension: SandboxMeshFxConfigExtension =
+                serde_json::from_value(extension_value.clone())
+                    .expect("Failed to parse ASHIOJIN_mesh_fx_config extension");
+            entity.insert(mesh_fx_config_extension);
+        }
+
+        info!("Mesh {:?}, Ext: {:?}", mesh.name(), mesh.extensions());
     }
 }
 
@@ -238,6 +255,31 @@ pub fn apply_sandbox_materials(
         }
     }
 }
+
+pub fn apply_sandbox_fx_meshes(
+    mut commands: Commands,
+    _time: Res<Time>,
+    #[allow(clippy::type_complexity)] query: Query<
+        (
+            Entity,
+            &SandboxMeshFxConfigExtension,
+            Option<&Mesh3d>,
+        ),
+        Added<SandboxMeshFxConfigExtension>,
+    >,
+) {
+    // Add TrailEmitter TODO: Should use `fx_type` to determine which effect to apply. For now, we only have one effect, so we ignore it.
+    for (entity, mesh_fx_config_extension, mesh3d) in query.iter() {
+        if !mesh_fx_config_extension.is_fx_mesh {
+            continue;
+        }
+        commands.entity(entity).insert((
+            TrailEmitter::new(0.2),
+            Visibility::Hidden,
+        ));
+    }
+}
+
 
 pub fn reload_shaders(asset_server: &AssetServer) {
     asset_server.reload(SHADER_ASSET_PATH);
