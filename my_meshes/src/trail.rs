@@ -92,9 +92,9 @@ impl MeshBuilder for TrailMeshBuilder {
         for i in 0..=self.resolution {
             let t = i as f32 / resolution_f;
 
-            // Interpolate root and tip using slerp.
-            let root = self.prev_root.slerp(self.curr_root, t);
-            let tip = self.prev_tip.slerp(self.curr_tip, t);
+            // Interpolate root and tip using lerp.
+            let root = self.prev_root.lerp(self.curr_root, t);
+            let tip = self.prev_tip.lerp(self.curr_tip, t);
 
             // Interpolate time linearly
             let time = self.prev_time + t * (self.curr_time - self.prev_time);
@@ -104,10 +104,10 @@ impl MeshBuilder for TrailMeshBuilder {
 
             // Movement direction:
             let move_dir = if t < 0.99 {
-                let next_root = self.prev_root.slerp(self.curr_root, t + 0.01);
+                let next_root = self.prev_root.lerp(self.curr_root, t + 0.01);
                 (next_root - root).normalize_or_zero()
             } else {
-                let prev_root = self.prev_root.slerp(self.curr_root, t - 0.01);
+                let prev_root = self.prev_root.lerp(self.curr_root, t - 0.01);
                 (root - prev_root).normalize_or_zero()
             };
 
