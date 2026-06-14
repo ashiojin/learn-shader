@@ -110,19 +110,18 @@ impl MeshBuilder for BeltMeshBuilder {
 
             // The normal is perpendicular to both the side vector and the path direction.
             let n = side.as_vec3().cross(forward).normalize_or_zero();
-            let half_width = self.width / 2.0;
 
-            let v_left = p + side * half_width;
-            let v_right = p - side * half_width;
+            let v_near = p;
+            let v_far = p + side * self.width;
 
-            vertices.push(v_left);
-            vertices.push(v_right);
+            vertices.push(v_near);
+            vertices.push(v_far);
 
             normals.push(n);
             normals.push(n);
 
-            uvs.push([t, 0.0]);
             uvs.push([t, 1.0]);
+            uvs.push([t, 0.0]); // far
         }
 
         // Generate indices for the triangle strip (as a TriangleList for simplicity with double-sided)
@@ -132,12 +131,12 @@ impl MeshBuilder for BeltMeshBuilder {
 
             // First side (Outer)
             indices.push(base);
-            indices.push(base + 1);
             indices.push(next);
+            indices.push(base + 1);
 
             indices.push(base + 1);
-            indices.push(next + 1);
             indices.push(next);
+            indices.push(next + 1);
         }
 
         // Double-sided: duplicate vertices and flip normals/indices
@@ -163,12 +162,12 @@ impl MeshBuilder for BeltMeshBuilder {
             let next = (i + 1) * 2 + index_offset;
 
             indices.push(base);
-            indices.push(next);
             indices.push(base + 1);
+            indices.push(next);
 
             indices.push(base + 1);
-            indices.push(next);
             indices.push(next + 1);
+            indices.push(next);
         }
 
         Mesh::new(
