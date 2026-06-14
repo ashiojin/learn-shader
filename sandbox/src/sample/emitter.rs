@@ -164,7 +164,7 @@ pub fn spawn_single_gltf_scene(
 
             match anime.animation_type() {
                 crate::sample::scene_mod::AnimationType::Repeat => {
-                    cmd.insert(AutoPlay(node, true, AnimationGraphHandle(h_graph)));
+                    cmd.try_insert(AutoPlay(node, true, AnimationGraphHandle(h_graph)));
                 }
             }
 
@@ -185,7 +185,7 @@ pub fn auto_play(
             q_auto_play.get(ancestor).ok()
          }) {
             debug!("Found AutoPlay for entity {:?}, node: {:?}, looped: {:?}", entity, auto_play.0, auto_play.1);
-            commands.entity(entity).insert(auto_play.2.clone());
+            commands.entity(entity).try_insert(auto_play.2.clone());
 
             if auto_play.1 {
                 player.play(auto_play.0).repeat();

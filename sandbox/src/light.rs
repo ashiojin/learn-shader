@@ -186,7 +186,7 @@ pub fn change_light(
     match light_state.pattern {
         LightPattern::BrightAmbientLightOnly(s) => {
             for (camera_entity, _) in q_camera.iter() {
-                commands.entity(camera_entity).insert(AmbientLight {
+                commands.entity(camera_entity).try_insert(AmbientLight {
                     color: Color::WHITE,
                     brightness: s.brightness,
                     affects_lightmapped_meshes: true,

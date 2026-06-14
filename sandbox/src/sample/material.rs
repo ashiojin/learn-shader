@@ -226,7 +226,7 @@ pub fn apply_sandbox_materials(
                     ..default()
                 };
                 let asset_handle = custom_materials.add(custom_material);
-                commands.entity(entity).insert(MeshMaterial3d(asset_handle));
+                commands.entity(entity).try_insert(MeshMaterial3d(asset_handle));
             }
             SampleMaterialType::ExtendedMaterial => {
                 let base_material = standard_material.unwrap_or(StandardMaterial {
@@ -242,7 +242,7 @@ pub fn apply_sandbox_materials(
                     ),
                 };
                 let asset_handle = extended_materials.add(material);
-                commands.entity(entity).insert(MeshMaterial3d(asset_handle));
+                commands.entity(entity).try_insert(MeshMaterial3d(asset_handle));
             }
             SampleMaterialType::UvTexture => {
                 let texture_handle = asset_server.load(myshaderlib::path_to_uv_test1024());
@@ -251,7 +251,7 @@ pub fn apply_sandbox_materials(
                     ..Default::default()
                 };
                 let asset_handle = standard_materials.add(material);
-                commands.entity(entity).insert(MeshMaterial3d(asset_handle));
+                commands.entity(entity).try_insert(MeshMaterial3d(asset_handle));
             }
         }
     }
@@ -274,7 +274,7 @@ pub fn apply_sandbox_fx_meshes(
         if !mesh_fx_config_extension.is_fx_mesh {
             continue;
         }
-        commands.entity(entity).insert((
+        commands.entity(entity).try_insert((
             TrailEmitter::new(0.2),
             Visibility::Hidden,
         ));

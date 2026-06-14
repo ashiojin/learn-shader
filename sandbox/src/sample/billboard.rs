@@ -80,7 +80,7 @@ pub fn add_billboard_component(
         for entity in q_models.iter() {
             commands
                 .entity(entity)
-                .insert(Billboarded::new(camera_entity, Dir3::Y, Dir3::Z));
+                .try_insert(Billboarded::new(camera_entity, Dir3::Y, Dir3::Z));
         }
     }
 

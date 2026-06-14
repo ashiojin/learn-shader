@@ -115,12 +115,12 @@ pub fn update_trail_emitter_positions(
 
             // update current and previous trail positions
             if let Some(current_trail_positions) = current_trail_positions {
-                commands.entity(entity).insert(PreviousTrailPositions {
+                commands.entity(entity).try_insert(PreviousTrailPositions {
                     begin: current_trail_positions.begin,
                     end: current_trail_positions.end,
                 });
             }
-            commands.entity(entity).insert(CurrentTrailPositions {
+            commands.entity(entity).try_insert(CurrentTrailPositions {
                 begin: global_positions[0],
                 end: global_positions[1],
             });
