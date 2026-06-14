@@ -120,6 +120,9 @@ fn poll_api_commands(
                 if let Some(state) = sample_state.as_deref_mut() {
                     match mode.as_str() {
                         "Saru" => state.sample_type = crate::sample::state::SampleType::Saru,
+                        "ArmAndRod" => {
+                            state.sample_type = crate::sample::state::SampleType::ArmAndRod
+                        }
                         "Plane" => state.sample_type = crate::sample::state::SampleType::Plane,
                         "Cube" => state.sample_type = crate::sample::state::SampleType::Cube,
                         "Cone" => state.sample_type = crate::sample::state::SampleType::Cone,
@@ -165,6 +168,7 @@ fn sync_telemetry_cache(sample_state: Option<Res<SampleState>>) {
         let current_sample_mode = format!("{:?}", state.sample_type);
         let available_sample_modes = vec![
             "Saru".to_string(),
+            "ArmAndRod".to_string(),
             "Plane".to_string(),
             "Cube".to_string(),
             "Cone".to_string(),

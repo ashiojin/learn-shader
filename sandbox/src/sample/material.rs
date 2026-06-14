@@ -270,7 +270,7 @@ pub fn apply_sandbox_fx_meshes(
     >,
 ) {
     // Add TrailEmitter TODO: Should use `fx_type` to determine which effect to apply. For now, we only have one effect, so we ignore it.
-    for (entity, mesh_fx_config_extension, mesh3d) in query.iter() {
+    for (entity, mesh_fx_config_extension, _mesh3d) in query.iter() {
         if !mesh_fx_config_extension.is_fx_mesh {
             continue;
         }

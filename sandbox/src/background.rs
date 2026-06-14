@@ -14,7 +14,7 @@ pub fn change_background(
     q_background: Query<Entity, With<Background>>,
 ) {
     for entity in q_background.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
     match *background {
         BackgroundState::None => {

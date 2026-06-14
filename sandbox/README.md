@@ -76,6 +76,7 @@ python3 -m http.server 8080
 
 - ALWAYS:
   - Separate each features to libs
+- For trail effect shader, send vertex attribute for time (`Trail` meshable already includes time attributes)
 - WASM version
   - New index.html
   - new WASM Api reading status

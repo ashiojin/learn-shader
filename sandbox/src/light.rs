@@ -173,7 +173,7 @@ pub fn change_light(
     info!("Changing light pattern to: {:?}", light_state.pattern);
     let mut main_camera_entity = Entity::PLACEHOLDER;
     for (entity, _pattern_component) in query.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
     for (camera_entity, satelite) in q_camera.iter() {
         commands.entity(camera_entity).remove::<AmbientLight>();
