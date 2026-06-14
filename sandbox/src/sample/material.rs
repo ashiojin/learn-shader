@@ -179,7 +179,7 @@ impl bevy::gltf::extensions::GltfExtensionHandler for ReplaceMaterialGltfExtensi
                 entity.insert(sandbox_extension);
 
                 let t = entity.get_resource::<Assets<StandardMaterial>>().is_some();
-                info!("{t:?}");
+                debug!("{t:?}");
             }
         }
         if let Some(extension_value) = mesh.extension_value(EXTENSION_MESH_FX_CONFIG_NAME) {
@@ -189,7 +189,8 @@ impl bevy::gltf::extensions::GltfExtensionHandler for ReplaceMaterialGltfExtensi
             entity.insert(mesh_fx_config_extension);
         }
 
-        info!("Mesh {:?}, Ext: {:?}", mesh.name(), mesh.extensions());
+        debug!("Mesh {:?}, Ext: {:?}", mesh.name(), mesh.extensions());
+        debug!("Material {:?}, Ext: {:?}", material.name(), material.extensions());
     }
 }
 

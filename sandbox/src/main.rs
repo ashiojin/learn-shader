@@ -19,7 +19,7 @@ use camera::SatelliteCamera;
 use crate::{
     background::change_background,
     camera::{ZoomDirection, update_camera_follower},
-    config::{ConfigState, draw_gizmo, draw_gizmo_for_trail_meshes},
+    config::{ConfigState, draw_gizmo, draw_gizmo_for_trail_meshes, draw_xy_grid_gizmo},
     light::{LightState, change_light, update_rotate_light},
     random::RandomPlugin,
     sample::{
@@ -90,6 +90,7 @@ fn run_app() {
                 react_to_keyevent,
                 draw_gizmo,
                 draw_gizmo_for_trail_meshes,
+                draw_xy_grid_gizmo,
                 poll_api_commands,
                 sync_telemetry_cache,
             ),
@@ -286,5 +287,10 @@ fn react_to_keyevent(
     // press 0 to toggle gizmo
     if keys.just_pressed(KeyCode::Digit0) {
         other_state.toggle_gizmo_cross();
+    }
+
+    // press 9 to toggle gizmo for debug
+    if keys.just_pressed(KeyCode::Digit9) {
+        other_state.toggle_gizmo_for_debug();
     }
 }

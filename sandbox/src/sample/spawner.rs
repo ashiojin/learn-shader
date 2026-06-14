@@ -112,7 +112,7 @@ pub fn spawn_sample(sample_type: &SampleType, commands: &mut Commands, meshes: &
                             start_point_dir,
                             end_point_pos,
                             end_point_dir,
-                            0.25,
+                            1.00,
                         )
                         .with_resolution(64)
                         .mesh(),
@@ -147,10 +147,10 @@ pub fn refresh_sample_mesh(
 ) {
     // 1. despawn old sample
     for entity in q_sample_models.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
     for entity in q_sample_emitters.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
 
     // 2. spawn new sample

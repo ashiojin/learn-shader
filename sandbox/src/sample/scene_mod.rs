@@ -73,6 +73,16 @@ impl PreviousTrailPositions {
     }
 }
 
+// FIXME: It makes 1 frame delay for the trail to appear,
+// because the `GlobalTransform` is updated after this system.
+// It can be fixed by:
+// - using `Transform` to calculate the frame final transform which will be equals to `GlobalTransform` of the end of the frame
+//   - The system should be placed just before `GlobalTransform` is updated
+//   - `TransformHelper` can be used to calculate the final transform, but it makes more overhead than just using `GlobalTransform`
+// - or using system ordering to make this system run after `GlobalTransform` is updated.
+//   - It will make that the trail's `GlobalTransform` should be updated by our code, but it can be more efficient than using `TransformHelper` to calculate the final transform.
+// But for now, we can just accept the 1 frame delay for the trail to appear, because it's not a
+// big deal for the visual effect of the trail in 60 FPS. Screanshot of the trail will be taken after the trail is updated, so the 1 frame delay will not be visible in the screenshot.
 pub fn update_trail_emitter_positions(
     _time: Res<Time>,
     mut commands: Commands,

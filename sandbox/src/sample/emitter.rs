@@ -123,7 +123,9 @@ pub fn despawn_expired(
 ) {
     for (entity, mesh_lifetime) in query.iter() {
         if time.elapsed_secs() - mesh_lifetime.spwawned_at >= mesh_lifetime.lifetime {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
+            // try_despawn is used to avoid despawning entities that have already been despawned by other systems.
+            // ex. Changing models may cause multiple despawn with the same entity in the same frame.
         }
     }
 }
@@ -144,7 +146,7 @@ pub fn spawn_single_gltf_scene(
     mut animation_graphs: ResMut<Assets<AnimationGraph>>,
 ) {
     for (_entity, emitter, transform, o_anime) in query.iter_mut() {
-        info!("spawn_single_gltf_scene: {:?}, {:?}, {:?}", emitter.gltf_path, emitter.scene_idx, o_anime);
+        debug!("spawn_single_gltf_scene: {:?}, {:?}, {:?}", emitter.gltf_path, emitter.scene_idx, o_anime);
         let cmd = &mut commands.spawn((
             SceneRoot(asset_server.load(
                 GltfAssetLabel::Scene(emitter.scene_idx).from_asset(
@@ -168,7 +170,7 @@ pub fn spawn_single_gltf_scene(
                 }
             }
 
-            info!("Added animation graph: {:?}, node: {:?}, clip_index: {:?}, animation_type: {:?}", cmd.id(), node, anime.clip_index(), anime.animation_type());
+            debug!("Added animation graph: {:?}, node: {:?}, clip_index: {:?}, animation_type: {:?}", cmd.id(), node, anime.clip_index(), anime.animation_type());
         }
     }
 }
@@ -180,11 +182,11 @@ pub fn auto_play(
     q_children: Query<&ChildOf>,
 ) {
     for (entity, mut player) in q_animation_players.iter_mut() {
-        info!("Checking AutoPlay for entity {:?} with AnimationPlayer", entity);
+        debug!("Checking AutoPlay for entity {:?} with AnimationPlayer", entity);
          if let Some((_e, auto_play)) = q_children.iter_ancestors(entity).find_map(|ancestor| {
             q_auto_play.get(ancestor).ok()
          }) {
-            info!("Found AutoPlay for entity {:?}, node: {:?}, looped: {:?}", entity, auto_play.0, auto_play.1);
+            debug!("Found AutoPlay for entity {:?}, node: {:?}, looped: {:?}", entity, auto_play.0, auto_play.1);
             commands.entity(entity).insert(auto_play.2.clone());
 
             if auto_play.1 {
@@ -201,17 +203,15 @@ pub fn spawn_trail_from_emmiter(
     query: Query<(Entity, &TrailEmitter, &CurrentTrailPositions, &PreviousTrailPositions)>,
     mut meshes: ResMut<Assets<Mesh>>,
     time: Res<Time>,
-    mut gizmos: Gizmos,
-
 ) {
     // Make a `Belt` between the current and previous positions of the emitter, and spawn a mesh for it. The mesh should have a lifetime equal to the trail lifetime of the emitter.
     for (_entity, trail_emitter, current_pos, previous_pos) in query.iter() {
         let org = current_pos.begin(); // for transform of the mesh entity
         let v_c = Vec3::ZERO; // current_pos.begin() - current_pos.begin() = Vec3::ZERO, we will use the `org` as the origin of the mesh, so the current position will be at (0, 0, 0) in the local space of the mesh
-        let d_c = current_pos.end() - current_pos.begin();
+        let d_c = (current_pos.end() - current_pos.begin()).normalize();
         let v_p = previous_pos.begin() - org;
-        let d_p = previous_pos.end() - previous_pos.begin();
-        let w = v_p.length();
+        let d_p = (previous_pos.end() - previous_pos.begin()).normalize();
+        let w = (current_pos.begin() - current_pos.end()).length();
 
         commands.spawn((
             Mesh3d(meshes.add(

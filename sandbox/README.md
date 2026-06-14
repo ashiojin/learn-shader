@@ -79,7 +79,6 @@ python3 -m http.server 8080
 - WASM version
   - New index.html
   - new WASM Api reading status
-- Using Gltf extensions instead of extras to replace a material to a extended material
 - Add some inputs to the fragment shader
   - float values
   - textures
