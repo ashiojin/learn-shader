@@ -1,7 +1,5 @@
-use std::thread::current;
-
-use bevy::{color::palettes::css, prelude::*};
-use my_meshes::Belt;
+use bevy::prelude::*;
+use my_meshes::Trail;
 use rand::distr::Distribution;
 
 use super::state::SampleModel;
@@ -204,22 +202,20 @@ pub fn spawn_trail_from_emmiter(
     mut meshes: ResMut<Assets<Mesh>>,
     time: Res<Time>,
 ) {
-    // Make a `Belt` between the current and previous positions of the emitter, and spawn a mesh for it. The mesh should have a lifetime equal to the trail lifetime of the emitter.
+    // Make a `Trail` between the current and previous positions of the emitter, and spawn a mesh for it. The mesh should have a lifetime equal to the trail lifetime of the emitter.
     for (_entity, trail_emitter, current_pos, previous_pos) in query.iter() {
         let org = current_pos.begin(); // for transform of the mesh entity
-        let v_c = Vec3::ZERO; // current_pos.begin() - current_pos.begin() = Vec3::ZERO, we will use the `org` as the origin of the mesh, so the current position will be at (0, 0, 0) in the local space of the mesh
-        let d_c = (current_pos.end() - current_pos.begin()).normalize();
-        let v_p = previous_pos.begin() - org;
-        let d_p = (previous_pos.end() - previous_pos.begin()).normalize();
-        let w = (current_pos.begin() - current_pos.end()).length();
+        let curr_root = Vec3::ZERO; // relative to org
+        let curr_tip = current_pos.end() - org;
+        let prev_root = previous_pos.begin() - org;
+        let prev_tip = previous_pos.end() - org;
+
+        let curr_time = time.elapsed_secs();
+        let prev_time = curr_time - time.delta_secs();
 
         commands.spawn((
             Mesh3d(meshes.add(
-                Belt::new(v_p, Dir3::new(d_p).unwrap(), v_c, Dir3::new(d_c).unwrap(), w)
-                // TODO: We want to specify additionally the width of the belt at the start and end
-                // positions separately, to allow for tapering the trail. For now we will just use the same width for both ends.
-                // We also need to add timestamps to the vertices to allow fading out the trail
-                // over time in the shader. So we will need another meshable shape that allows us to specify custom vertex attributes.
+                Trail::new(prev_root, prev_tip, curr_root, curr_tip, prev_time, curr_time)
                     .with_resolution(8)
                     .mesh(),
             )),
