@@ -7,6 +7,7 @@ edition = "2024"
 bevy = { workspace = true, features=["3d"] }
 bytemuck = { workspace = true }
 nonmax = { workspace = true }
+indexmap = { workspace = true }
 
 # ---
 # Workaround : see https://github.com/bevyengine/bevy/issues/10425

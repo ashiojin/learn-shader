@@ -2,19 +2,17 @@ use std::ops::Range;
 
 use bevy::{
     camera::{MainPassResolutionOverride, Viewport},
-    core_pipeline::core_3d::{CORE_3D_DEPTH_FORMAT, graph::{Core3d, Node3d}},
-    ecs::{
-        query::QueryItem,
-        system::{
-            SystemParamItem,
-            lifetimeless::{Read, SRes},
-        },
+    core_pipeline::{
+        Core3d, Core3dSystems,
+        core_3d::{CORE_3D_DEPTH_FORMAT, TransparentSortingInfo3d, main_opaque_pass_3d},
     },
-    math::FloatOrd,
+    ecs::system::{
+        SystemParamItem,
+        lifetimeless::{Read, SRes},
+    },
+    math::{Affine3Ext, FloatOrd},
     pbr::{
-        DrawMesh, MeshInputUniform, MeshPipeline, MeshPipelineKey, MeshPipelineViewLayoutKey,
-        MeshUniform, RenderMeshInstances, SetMeshBindGroup, SetMeshViewBindGroup,
-        SetMeshViewEmptyBindGroup,
+        self, DrawMesh, MeshInputUniform, MeshPipeline, MeshPipelineKey, MeshPipelineSystems, MeshPipelineViewLayoutKey, MeshUniform, RenderMeshInstances, SetMeshBindGroup, SetMeshViewBindGroup, SetMeshViewEmptyBindGroup, ViewKeyCache
     },
     platform::collections::HashSet,
     prelude::*,
@@ -23,26 +21,27 @@ use bevy::{
         batching::{
             GetBatchData, GetFullBatchData,
             gpu_preprocessing::{
-                IndirectParametersCpuMetadata, UntypedPhaseIndirectParametersBuffers,
-                batch_and_prepare_sorted_render_phase,
+                BatchedInstanceBuffers, IndirectParametersCpuMetadata,
+                UntypedPhaseIndirectParametersBuffers, batch_and_prepare_sorted_render_phase,
             },
         },
-        camera::ExtractedCamera,
+        camera::{DirtySpecializations, ExtractedCamera, PendingQueues},
         extract_component::{ExtractComponent, ExtractComponentPlugin},
         mesh::{RenderMesh, allocator::MeshAllocator},
         render_asset::RenderAssets,
-        render_graph::{
-            NodeRunError, RenderGraphContext, RenderGraphExt, RenderLabel, ViewNode, ViewNodeRunner,
-        },
         render_phase::{
             AddRenderCommand, CachedRenderPipelinePhaseItem, DrawFunctionId, DrawFunctions,
             PhaseItem, PhaseItemExtraIndex, SetItemPipeline, SortedPhaseItem,
             SortedRenderPhasePlugin, ViewSortedRenderPhases, sort_phase_system,
         },
         render_resource::{
-            BlendState, CachedRenderPipelineId, ColorTargetState, ColorWrites, CompareFunction, DepthBiasState, DepthStencilState, Face, FragmentState, PipelineCache, PrimitiveState, RenderPassDescriptor, RenderPipelineDescriptor, SpecializedMeshPipeline, SpecializedMeshPipelineError, SpecializedMeshPipelines, StencilState, StoreOp, TextureFormat, VertexState
+            BlendState, CachedRenderPipelineId, ColorTargetState, ColorWrites, CompareFunction,
+            DepthBiasState, DepthStencilState, Face, FragmentState, PipelineCache, PrimitiveState,
+            RenderPassDescriptor, RenderPipelineDescriptor, SpecializedMeshPipeline,
+            SpecializedMeshPipelineError, SpecializedMeshPipelines, StencilState, StoreOp,
+            VertexState,
         },
-        renderer::RenderContext,
+        renderer::{RenderContext, ViewQuery},
         sync_world::MainEntity,
         view::{
             ExtractedView, RenderVisibleEntities, RetainedViewEntity, ViewDepthTexture, ViewTarget,
@@ -124,7 +123,7 @@ fn setup(
     // light
     commands.spawn((
         PointLight {
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             ..default()
         },
         Transform::from_xyz(4.0, 8.0, 4.0),
@@ -142,10 +141,7 @@ fn setup(
 #[derive(Component, Debug)]
 struct SateliteCamera;
 
-fn rotate_camera(
-    time: Res<Time>,
-    mut query: Query<&mut Transform, With<SateliteCamera>>,
-) {
+fn rotate_camera(time: Res<Time>, mut query: Query<&mut Transform, With<SateliteCamera>>) {
     for mut transform in &mut query {
         transform.rotate_around(Vec3::ZERO, Quat::from_rotation_y(0.3 * time.delta_secs()));
     }
@@ -172,7 +168,11 @@ impl Plugin for MeshStencilPhasePlugin {
             .init_resource::<DrawFunctions<Stencil3d>>()
             .add_render_command::<Stencil3d, DrawMesh3dStencil>()
             .init_resource::<ViewSortedRenderPhases<Stencil3d>>()
-            .add_systems(RenderStartup, init_stencil_pipeline)
+            .init_resource::<PendingCustomMeshQueues>()
+            .add_systems(
+                RenderStartup,
+                init_stencil_pipeline.after(MeshPipelineSystems),
+            )
             .add_systems(ExtractSchedule, extract_camera_phases)
             .add_systems(
                 Render,
@@ -182,11 +182,13 @@ impl Plugin for MeshStencilPhasePlugin {
                     batch_and_prepare_sorted_render_phase::<Stencil3d, StencilPipeline>
                         .in_set(RenderSystems::PrepareResources),
                 ),
+            )
+            .add_systems(
+                Core3d,
+                custom_draw_system
+                    .after(main_opaque_pass_3d)
+                    .in_set(Core3dSystems::MainPass),
             );
-
-        render_app
-            .add_render_graph_node::<ViewNodeRunner<CustomDrawNode>>(Core3d, CustomDrawPassLabel)
-            .add_render_graph_edges(Core3d, (Node3d::MainOpaquePass, CustomDrawPassLabel));
     }
 }
 
@@ -240,7 +242,7 @@ impl SpecializedMeshPipeline for StencilPipeline {
             fragment: Some(FragmentState {
                 shader: self.shader_handle.clone(),
                 targets: vec![Some(ColorTargetState {
-                    format: TextureFormat::bevy_default(),
+                    format: key.target_format(),
                     blend: Some(BlendState::ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],
@@ -254,10 +256,10 @@ impl SpecializedMeshPipeline for StencilPipeline {
             // Only render if it's overlapped by others
             depth_stencil: Some(DepthStencilState {
                 format: CORE_3D_DEPTH_FORMAT,
-                depth_write_enabled: false,
-                depth_compare: CompareFunction::Less,
+                depth_write_enabled: Some(false),
+                depth_compare: Some(CompareFunction::Less),
                 stencil: StencilState::default(),
-                bias: DepthBiasState::default()
+                bias: DepthBiasState::default(),
             }),
             ..default()
         })
@@ -273,7 +275,8 @@ type DrawMesh3dStencil = (
 );
 
 struct Stencil3d {
-    pub sort_key: FloatOrd,
+    pub distance: FloatOrd,
+    pub sorting_info: TransparentSortingInfo3d,
     pub entity: (Entity, MainEntity),
     pub pipeline: CachedRenderPipelineId,
     pub draw_function: DrawFunctionId,
@@ -324,12 +327,24 @@ impl SortedPhaseItem for Stencil3d {
 
     #[inline]
     fn sort_key(&self) -> Self::SortKey {
-        self.sort_key
+        self.distance
     }
 
     #[inline]
-    fn sort(items: &mut [Self]) {
-        items.sort_by_key(|item| item.sort_key());
+    fn sort(
+        items: &mut indexmap::IndexMap<(Entity, MainEntity), Self, bevy::ecs::entity::EntityHash>,
+    ) {
+        items.sort_by_key(|_, item: &Stencil3d| item.distance);
+    }
+
+    fn recalculate_sort_keys(
+        items: &mut indexmap::IndexMap<(Entity, MainEntity), Self, bevy::ecs::entity::EntityHash>,
+        view: &ExtractedView,
+    ) {
+        let rangefinder = view.rangefinder3d();
+        for item in items.values_mut() {
+            item.distance = FloatOrd(item.sorting_info.sort_distance(&rangefinder));
+        }
     }
 
     #[inline]
@@ -351,20 +366,24 @@ impl GetBatchData for StencilPipeline {
         SRes<RenderAssets<RenderMesh>>,
         SRes<MeshAllocator>,
     );
-    type CompareData = AssetId<Mesh>;
+    type BatchSetCompareData = AssetId<Mesh>;
+    type BatchCompareData = ();
     type BufferData = MeshUniform;
 
     fn get_batch_data(
         (mesh_instances, _render_assets, mesh_allocator): &SystemParamItem<Self::Param>,
         (_entity, main_entity): (Entity, MainEntity),
-    ) -> Option<(Self::BufferData, Option<Self::CompareData>)> {
+    ) -> Option<(
+        Self::BufferData,
+        Option<(Self::BatchSetCompareData, Self::BatchCompareData)>,
+    )> {
         let RenderMeshInstances::CpuBuilding(ref mesh_instances) = **mesh_instances else {
             error!("`get_batch_data` should never be called in GPU mesh uniform building mode");
             return None;
         };
         let mesh_instance = mesh_instances.get(&main_entity)?;
         let first_vertex_index =
-            match mesh_allocator.mesh_vertex_slice(&mesh_instance.mesh_asset_id) {
+            match mesh_allocator.mesh_vertex_slice(&mesh_instance.mesh_asset_id()) {
                 Some(mesh_vertex_slice) => mesh_vertex_slice.range.start,
                 None => 0,
             };
@@ -383,7 +402,7 @@ impl GetBatchData for StencilPipeline {
                 current_skin_index: u32::MAX,
                 material_and_lightmap_bind_group_slot: 0,
                 tag: 0,
-                pad: 0,
+                morph_descriptor_index: u32::MAX,
             }
         };
         Some((mesh_uniform, None))
@@ -396,7 +415,10 @@ impl GetFullBatchData for StencilPipeline {
     fn get_index_and_compare_data(
         (mesh_instances, _, _): &SystemParamItem<Self::Param>,
         main_entity: MainEntity,
-    ) -> Option<(NonMaxU32, Option<Self::CompareData>)> {
+    ) -> Option<(
+        NonMaxU32,
+        Option<(Self::BatchSetCompareData, Self::BatchCompareData)>,
+    )> {
         let RenderMeshInstances::GpuBuilding(ref mesh_instances) = **mesh_instances else {
             error!(
                 "`get_index_and_compare_data` should never be called in CPU mesh uniform building mode"
@@ -405,10 +427,10 @@ impl GetFullBatchData for StencilPipeline {
         };
         let mesh_instance = mesh_instances.get(&main_entity)?;
         Some((
-            mesh_instance.current_uniform_index,
+            NonMaxU32::new(mesh_instance.gpu_specific.current_uniform_index())?,
             mesh_instance
                 .should_batch()
-                .then_some(mesh_instance.mesh_asset_id),
+                .then_some((mesh_instance.mesh_asset_id(), ())),
         ))
     }
 
@@ -424,14 +446,15 @@ impl GetFullBatchData for StencilPipeline {
         };
         let mesh_instance = mesh_instances.get(&main_entity)?;
         let first_vertex_index =
-            match mesh_allocator.mesh_vertex_slice(&mesh_instance.mesh_asset_id) {
+            match mesh_allocator.mesh_vertex_slice(&mesh_instance.mesh_asset_id()) {
                 Some(mesh_vertex_slice) => mesh_vertex_slice.range.start,
                 None => 0,
             };
         Some(MeshUniform::new(
             &mesh_instance.transforms,
             first_vertex_index,
-            mesh_instance.material_bindings_index.slot,
+            mesh_instance.material_bindings_index().slot,
+            None,
             None,
             None,
             None,
@@ -480,12 +503,15 @@ fn extract_camera_phases(
             continue;
         }
         let retained_view_entity = RetainedViewEntity::new(main_entity.into(), None, 0);
-        stencil_phases.insert_or_clear(retained_view_entity);
+        stencil_phases.prepare_for_new_frame(retained_view_entity);
         live_entities.insert(retained_view_entity);
     }
 
     stencil_phases.retain(|camera_entity, _| live_entities.contains(camera_entity));
 }
+
+#[derive(Default, Deref, DerefMut, Resource)]
+struct PendingCustomMeshQueues(pub PendingQueues);
 
 #[allow(clippy::too_many_arguments)]
 fn queue_custom_meshes(
@@ -495,34 +521,61 @@ fn queue_custom_meshes(
     custom_draw_pipeline: Res<StencilPipeline>,
     render_meshes: Res<RenderAssets<RenderMesh>>,
     render_mesh_instances: Res<RenderMeshInstances>,
+    maybe_batched_instance_buffers: Option<
+        Res<BatchedInstanceBuffers<MeshUniform, MeshInputUniform>>,
+    >,
     mut custom_render_phases: ResMut<ViewSortedRenderPhases<Stencil3d>>,
-    mut views: Query<(&ExtractedView, &RenderVisibleEntities, &Msaa)>,
+    mut views: Query<(&ExtractedView, &RenderVisibleEntities)>,
+    view_key_cache: Res<ViewKeyCache>,
+    dirty_specializations: Res<DirtySpecializations>,
+    mut pending_custom_mesh_queues: ResMut<PendingCustomMeshQueues>,
     has_marker: Query<(), With<DrawStencil>>,
 ) {
-    for (view, visible_entities, msaa) in &mut views {
+    for (view, visible_entities) in &mut views {
         let Some(custom_phase) = custom_render_phases.get_mut(&view.retained_view_entity) else {
             continue;
         };
         let draw_custom = custom_draw_functions.read().id::<DrawMesh3dStencil>();
 
-        let view_key = MeshPipelineKey::from_msaa_samples(msaa.samples())
-            | MeshPipelineKey::from_hdr(view.hdr);
-        let rangefinder = view.rangefinder3d();
+        let Some(&view_key) = view_key_cache.get(&view.retained_view_entity) else {
+            continue;
+        };
+        let Some(render_visible_mesh_entities) = visible_entities.get::<Mesh3d>() else {
+            continue;
+        };
+        let view_pending_custom_mesh_queues =
+            pending_custom_mesh_queues.prepare_for_new_frame(view.retained_view_entity);
+        for &main_entity in dirty_specializations
+            .iter_to_dequeue(view.retained_view_entity, render_visible_mesh_entities)
+        {
+            custom_phase.remove(Entity::PLACEHOLDER, main_entity);
+        }
 
-        for (render_entity, visible_entity) in visible_entities.iter::<Mesh3d>() {
+        for (render_entity, visible_entity) in dirty_specializations.iter_to_queue(
+            view.retained_view_entity,
+            render_visible_mesh_entities,
+            &view_pending_custom_mesh_queues.prev_frame,
+        ) {
             if has_marker.get(*render_entity).is_err() {
                 continue;
             }
             let Some(mesh_instance) = render_mesh_instances.render_mesh_queue_data(*visible_entity)
             else {
+                // We couldn't fetch the mesh
+                view_pending_custom_mesh_queues
+                    .current_frame
+                    .insert((*render_entity, *visible_entity));
                 continue;
             };
-            let Some(mesh) = render_meshes.get(mesh_instance.mesh_asset_id) else {
+            let Some(mesh) = render_meshes.get(mesh_instance.mesh_asset_id()) else {
                 continue;
             };
 
             let mut mesh_key = view_key;
-            mesh_key |= MeshPipelineKey::from_primitive_topology(mesh.primitive_topology());
+            mesh_key |= MeshPipelineKey::from_primitive_topology_and_strip_index(
+                mesh.primitive_topology(),
+                mesh.index_format(),
+            );
 
             let pipeline_id = pipelines.specialize(
                 &pipeline_cache,
@@ -537,11 +590,25 @@ fn queue_custom_meshes(
                     continue;
                 }
             };
-            let distance = rangefinder.distance(&mesh_instance.center);
 
-            custom_phase.add(Stencil3d {
-                sort_key: FloatOrd(distance),
-                entity: (*render_entity, *visible_entity),
+            custom_phase.add_retained(Stencil3d {
+                sorting_info: TransparentSortingInfo3d::Sorted {
+                    mesh_center: pbr::get_mesh_instance_world_from_local(
+                        *visible_entity,
+                        mesh_instance.current_uniform_index,
+                        &render_mesh_instances,
+                        maybe_batched_instance_buffers.as_deref(),
+                    )
+                    .transform_point3(
+                        render_meshes
+                            .get(mesh_instance.mesh_asset_id())
+                            .unwrap()
+                            .aabb_center,
+                    ),
+                    depth_bias: 0.0,
+                },
+                distance: FloatOrd(0.0),
+                entity: (Entity::PLACEHOLDER, *visible_entity),
                 pipeline: pipeline_id,
                 draw_function: draw_custom,
                 batch_range: 0..1, // not batched
@@ -552,59 +619,42 @@ fn queue_custom_meshes(
     }
 }
 
-#[derive(RenderLabel, Debug, Clone, Hash, PartialEq, Eq)]
-struct CustomDrawPassLabel;
-
-#[derive(Default)]
-struct CustomDrawNode;
-impl ViewNode for CustomDrawNode {
-    type ViewQuery = (
-        &'static ExtractedCamera,
-        &'static ExtractedView,
-        &'static ViewTarget,
+fn custom_draw_system(
+    world: &World,
+    #[allow(clippy::type_complexity)]
+    view: ViewQuery<(
+        &ExtractedCamera,
+        &ExtractedView,
+        &ViewTarget,
         Option<&'static MainPassResolutionOverride>,
         Read<ViewDepthTexture>,
-    );
+    )>,
+    stencil_phases: Res<ViewSortedRenderPhases<Stencil3d>>,
+    mut ctx: RenderContext,
+) {
+    let view_entity = view.entity();
+    let (camera, extracted_view, target, resolution_override, depth_texture) = view.into_inner();
 
-    fn run<'w>(
-        &self,
-        graph: &mut RenderGraphContext,
-        render_context: &mut RenderContext<'w>,
-        (camera, view, target, resolution_override, depth_texture): QueryItem<
-            'w,
-            '_,
-            Self::ViewQuery,
-        >,
-        world: &'w World,
-    ) -> Result<(), NodeRunError> {
-        let Some(stencil_phases) = world.get_resource::<ViewSortedRenderPhases<Stencil3d>>() else {
-            return Ok(());
-        };
+    let Some(stencil_phase) = stencil_phases.get(&extracted_view.retained_view_entity) else {
+        return;
+    };
 
-        let view_entity = graph.view_entity();
+    let mut render_pass = ctx.begin_tracked_render_pass(RenderPassDescriptor {
+        label: Some("stencil pass"),
+        color_attachments: &[Some(target.get_color_attachment())],
+        depth_stencil_attachment: Some(depth_texture.get_attachment(StoreOp::Store)),
+        timestamp_writes: None,
+        occlusion_query_set: None,
+        multiview_mask: None,
+    });
 
-        let Some(stencil_phase) = stencil_phases.get(&view.retained_view_entity) else {
-            return Ok(());
-        };
+    if let Some(viewport) =
+        Viewport::from_viewport_and_override(camera.viewport.as_ref(), resolution_override)
+    {
+        render_pass.set_camera_viewport(&viewport);
+    }
 
-        let mut render_pass = render_context.begin_tracked_render_pass(RenderPassDescriptor {
-            label: Some("stencil pass"),
-            color_attachments: &[Some(target.get_color_attachment())],
-            depth_stencil_attachment: Some(depth_texture.get_attachment(StoreOp::Store)),
-            timestamp_writes: None,
-            occlusion_query_set: None,
-        });
-
-        if let Some(viewport) =
-            Viewport::from_viewport_and_override(camera.viewport.as_ref(), resolution_override)
-        {
-            render_pass.set_camera_viewport(&viewport);
-        }
-
-        if let Err(err) = stencil_phase.render(&mut render_pass, world, view_entity) {
-            error!("Error encountered while rendering the stencil phase {err:?}");
-        }
-
-        Ok(())
+    if let Err(err) = stencil_phase.render(&mut render_pass, world, view_entity) {
+        error!("Error encountered while rendering the stencil phase {err:?}");
     }
 }

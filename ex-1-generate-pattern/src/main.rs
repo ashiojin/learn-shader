@@ -34,14 +34,14 @@ fn setup(
         MeshMaterial3d(materials.add(ExtendedMaterial {
             base: StandardMaterial {
                 base_color: RED.into(),
-                opaque_render_method: bevy::pbr::OpaqueRendererMethod::Auto,
+                opaque_render_method: bevy::material::OpaqueRendererMethod::Auto,
                 ..default()
             },
             extension: MyExtension::new(7),
         })),
         // MeshMaterial3d(standard_materials.add(StandardMaterial {
         //     base_color: GREEN.into(),
-        //     opaque_render_method: bevy::pbr::OpaqueRendererMethod::Auto,
+        //     opaque_render_method: bevy::material::OpaqueRendererMethod::Auto,
         //     ..default()
         // })),
         Transform::from_xyz(-1.0, 0.5, 0.0),
@@ -52,7 +52,7 @@ fn setup(
         Mesh3d(meshes.add(Sphere::new(1.0))),
         MeshMaterial3d(standard_materials.add(StandardMaterial {
             base_color: RED.into(),
-            opaque_render_method: bevy::pbr::OpaqueRendererMethod::Auto,
+            opaque_render_method: bevy::material::OpaqueRendererMethod::Auto,
             ..default()
         })),
         Transform::from_xyz(1.0, 0.5, 0.0),

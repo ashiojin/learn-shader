@@ -2435,6 +2435,7 @@ dependencies = [
  "bevy",
  "blake3",
  "bytemuck",
+ "indexmap",
  "nonmax",
 ]
 
