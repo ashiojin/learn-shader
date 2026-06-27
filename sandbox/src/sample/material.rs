@@ -159,9 +159,10 @@ const EXTENSION_MESH_FX_CONFIG_NAME: &str = "ASHIOJIN_mesh_fx_config";
 pub struct ReplaceMaterialGltfExtensionHandler;
 
 impl bevy::gltf::extensions::GltfExtensionHandler for ReplaceMaterialGltfExtensionHandler {
-    fn dyn_clone(&self) -> Box<dyn bevy::gltf::extensions::GltfExtensionHandler> {
+    fn dyn_clone(&self) -> Box<dyn bevy::gltf::extensions::ErasedGltfExtensionHandler> {
         Box::new(self.clone())
     }
+
     fn on_spawn_mesh_and_material(
         &mut self,
         _load_context: &mut bevy::asset::LoadContext<'_>,
@@ -169,6 +170,7 @@ impl bevy::gltf::extensions::GltfExtensionHandler for ReplaceMaterialGltfExtensi
         mesh: &gltf::Mesh,
         material: &gltf::Material,
         entity: &mut EntityWorldMut,
+        _material_label: &str,
     ) {
         if let Some(extension_value) = material.extension_value(EXTENSION_MATERIAL_NAME) {
             let sandbox_extension: SandboxExtension =

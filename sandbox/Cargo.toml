@@ -30,6 +30,20 @@ version = "1.8"
 features = ["pure"]
 # ---
 
+# ---
+# Workaround for:
+#
+# error: The wasm32-unknown-unknown targets are not supported by default; you may need to enable the "wasm_js" crate feature. For more information see: https://docs.rs/getrandom/0.4.2/#webassembly-support
+#    --> /home/mori/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.4.2/src/backends.rs:176:17
+#     |
+# 176 | /                 compile_error!(concat!(
+# 177 | |                     "The wasm32-unknown-unknown targets are not supported by default; \
+# 178 | |                     you may need to enable the \"wasm_js\" crate feature. \
+# 179 | |                     For more information see: \
+# 180 | |                     https://docs.rs/getrandom/", env!("CARGO_PKG_VERSION"), "/#webassembly-support"
+# 181 | |                 ));
+#     | |__________________^
 [target.'cfg(target_family = "wasm")'.dependencies.getrandom]
-version = "0.3.4"
+version = "0.4.2"
 features = ["wasm_js"]
+# ---

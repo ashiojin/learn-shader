@@ -38,7 +38,7 @@ impl PointLightSetting {
             intensity: self.intensity,
             range: self.range,
             radius: self.radius,
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             ..default()
         }
     }
@@ -224,7 +224,7 @@ pub fn change_light(
                 DirectionalLight {
                     color: Color::WHITE,
                     illuminance: b.illuminance,
-                    shadows_enabled: true,
+                    shadow_maps_enabled: true,
                     ..default()
                 },
                 // `DirectionalLight` shines along the forward direction

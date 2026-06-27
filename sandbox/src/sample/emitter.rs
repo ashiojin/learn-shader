@@ -146,7 +146,7 @@ pub fn spawn_single_gltf_scene(
     for (_entity, emitter, transform, o_anime) in query.iter_mut() {
         debug!("spawn_single_gltf_scene: {:?}, {:?}, {:?}", emitter.gltf_path, emitter.scene_idx, o_anime);
         let cmd = &mut commands.spawn((
-            SceneRoot(asset_server.load(
+            WorldAssetRoot(asset_server.load(
                 GltfAssetLabel::Scene(emitter.scene_idx).from_asset(
                 emitter.gltf_path.clone()),
             )),

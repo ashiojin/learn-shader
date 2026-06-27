@@ -3,13 +3,13 @@ resolver = "3"
 members = ["ex-1-generate-pattern", "ex-2-custom-render-phase", "myshaderlib", "sandbox","my_meshes"]
 
 [workspace.dependencies]
-bevy = { version = "0.18", default-features=false }
+bevy = { version = "0.19", default-features=false }
 bytemuck = { version = "1.24" }
 nonmax = { version = "0.5" }
-rand = { version ="0.9.0" }
-rand_chacha = { version = "0.9.0" }
+rand = { version ="0.10.1" }
+rand_chacha = { version = "0.10.0" }
 gltf = { version = "1.4" }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1.0.140"
+serde_json = "1.0.150"
 
 wasm-bindgen={ version = "0.2.122" }
