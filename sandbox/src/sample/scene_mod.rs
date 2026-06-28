@@ -29,18 +29,49 @@ impl AutoAnimation {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct TrailEmitterTiming {
+    pub start_time: f32,
+    pub end_time: f32,
+}
+impl TrailEmitterTiming {
+    pub fn new(start_time: f32, end_time: f32) -> Self {
+        Self {
+            start_time,
+            end_time,
+        }
+    }
+
+    pub fn is_active(&self, time: f32) -> bool {
+        time >= self.start_time && time <= self.end_time
+    }
+}
+
 #[derive(Component, Debug, Clone)]
 pub struct TrailEmitter {
-    trail_lifetime: f32,
+    lifetime: f32,
+    timing: Option<TrailEmitterTiming>,
 }
 
 impl TrailEmitter {
-    pub fn new(trail_lifetime: f32) -> Self {
-        Self { trail_lifetime }
+    pub fn new(lifetime: f32) -> Self {
+        Self {
+            lifetime,
+            timing: None,
+        }
     }
 
-    pub fn trail_lifetime(&self) -> f32 {
-        self.trail_lifetime
+    pub fn with_timing(mut self, timing: TrailEmitterTiming) -> Self {
+        self.timing = Some(timing);
+        self
+    }
+
+    pub fn lifetime(&self) -> f32 {
+        self.lifetime
+    }
+
+    pub fn timing(&self) -> Option<TrailEmitterTiming> {
+        self.timing
     }
 }
 

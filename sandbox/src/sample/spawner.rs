@@ -32,7 +32,7 @@ pub fn spawn_sample(sample_type: &SampleType, commands: &mut Commands, meshes: &
                 },
                 Transform::from_xyz(0., 0., 0.).with_scale(Vec3::new(0.3, 0.3, 0.3)),
                 SampleEmitter,
-                AutoAnimation::new(1, AnimationType::Repeat),
+                AutoAnimation::new(0, AnimationType::Repeat),
             ));
         }
         SampleType::Plane => {

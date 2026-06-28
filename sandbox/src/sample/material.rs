@@ -1,8 +1,8 @@
 use std::sync::Mutex;
 
 use bevy::{
-    asset::uuid::Uuid,
-    color::palettes::css, pbr::ExtendedMaterial, prelude::*, render::render_resource::AsBindGroup,
+    asset::uuid::Uuid, color::palettes::css, pbr::ExtendedMaterial, prelude::*,
+    render::render_resource::AsBindGroup,
 };
 
 use super::state::SampleModel;
@@ -10,7 +10,7 @@ use super::state::{SampleMaterialType, SampleState};
 use crate::sample::extended_material::{
     MY_EXTENSION_SHADER_PATH, MyExtendedMaterial, MyExtension, ReloadReq,
 };
-use crate::sample::scene_mod::TrailEmitter;
+use crate::sample::scene_mod::{TrailEmitter, TrailEmitterTiming};
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone, Default)]
 pub struct CustomMaterial {
@@ -33,7 +33,9 @@ const CUSTOM_MATERIAL_WGSL_UUID: Uuid = Uuid::from_u128(0xffff0000aaaabdef123456
 const CUSTOM_MATERIAL_WGSL_PATH: &str = "globals:custom_material.wgsl";
 
 pub fn init_custom_material_global() {
-    let mut wgsl = CUSTOM_MATERIAL_WGSL.lock().expect("Failed to lock CUSTOM_WGSL");
+    let mut wgsl = CUSTOM_MATERIAL_WGSL
+        .lock()
+        .expect("Failed to lock CUSTOM_WGSL");
     wgsl.clear();
     let bytes = include_bytes!("../shaders/fragment.wgsl");
     wgsl.extend_from_slice(bytes);
@@ -51,7 +53,9 @@ pub fn load_custom_material(
     if !is_requested {
         return;
     }
-    let wgsl = CUSTOM_MATERIAL_WGSL.lock().expect("Failed to lock CUSTOM_WGSL");
+    let wgsl = CUSTOM_MATERIAL_WGSL
+        .lock()
+        .expect("Failed to lock CUSTOM_WGSL");
     let copy = wgsl.clone();
     let text = String::from_utf8(copy).unwrap();
     let shader = Shader::from_wgsl(text, CUSTOM_MATERIAL_WGSL_PATH.to_string());
@@ -62,13 +66,17 @@ pub fn load_custom_material(
 }
 
 pub fn write_custom_material(wgsl_text: &str) {
-    let mut wgsl = CUSTOM_MATERIAL_WGSL.lock().expect("Failed to lock CUSTOM_WGSL");
+    let mut wgsl = CUSTOM_MATERIAL_WGSL
+        .lock()
+        .expect("Failed to lock CUSTOM_WGSL");
     wgsl.clear();
     wgsl.extend_from_slice(wgsl_text.as_bytes());
 }
 
 pub fn read_custom_material() -> String {
-    let wgsl = CUSTOM_MATERIAL_WGSL.lock().expect("Failed to lock CUSTOM_WGSL");
+    let wgsl = CUSTOM_MATERIAL_WGSL
+        .lock()
+        .expect("Failed to lock CUSTOM_WGSL");
     String::from_utf8(wgsl.clone()).unwrap()
 }
 
@@ -192,7 +200,11 @@ impl bevy::gltf::extensions::GltfExtensionHandler for ReplaceMaterialGltfExtensi
         }
 
         debug!("Mesh {:?}, Ext: {:?}", mesh.name(), mesh.extensions());
-        debug!("Material {:?}, Ext: {:?}", material.name(), material.extensions());
+        debug!(
+            "Material {:?}, Ext: {:?}",
+            material.name(),
+            material.extensions()
+        );
     }
 }
 
@@ -228,7 +240,9 @@ pub fn apply_sandbox_materials(
                     ..default()
                 };
                 let asset_handle = custom_materials.add(custom_material);
-                commands.entity(entity).try_insert(MeshMaterial3d(asset_handle));
+                commands
+                    .entity(entity)
+                    .try_insert(MeshMaterial3d(asset_handle));
             }
             SampleMaterialType::ExtendedMaterial => {
                 let base_material = standard_material.unwrap_or(StandardMaterial {
@@ -244,7 +258,9 @@ pub fn apply_sandbox_materials(
                     ),
                 };
                 let asset_handle = extended_materials.add(material);
-                commands.entity(entity).try_insert(MeshMaterial3d(asset_handle));
+                commands
+                    .entity(entity)
+                    .try_insert(MeshMaterial3d(asset_handle));
             }
             SampleMaterialType::UvTexture => {
                 let texture_handle = asset_server.load(myshaderlib::path_to_uv_test1024());
@@ -253,7 +269,9 @@ pub fn apply_sandbox_materials(
                     ..Default::default()
                 };
                 let asset_handle = standard_materials.add(material);
-                commands.entity(entity).try_insert(MeshMaterial3d(asset_handle));
+                commands
+                    .entity(entity)
+                    .try_insert(MeshMaterial3d(asset_handle));
             }
         }
     }
@@ -263,11 +281,7 @@ pub fn apply_sandbox_fx_meshes(
     mut commands: Commands,
     _time: Res<Time>,
     #[allow(clippy::type_complexity)] query: Query<
-        (
-            Entity,
-            &SandboxMeshFxConfigExtension,
-            Option<&Mesh3d>,
-        ),
+        (Entity, &SandboxMeshFxConfigExtension, Option<&Mesh3d>),
         Added<SandboxMeshFxConfigExtension>,
     >,
 ) {
@@ -277,12 +291,12 @@ pub fn apply_sandbox_fx_meshes(
             continue;
         }
         commands.entity(entity).try_insert((
-            TrailEmitter::new(0.2),
+            TrailEmitter::new(0.2)
+                .with_timing(TrailEmitterTiming::new(4. * (1. / 24.), 10. * (1. / 24.))),
             Visibility::Hidden,
         ));
     }
 }
-
 
 pub fn reload_shaders(asset_server: &AssetServer) {
     asset_server.reload(SHADER_ASSET_PATH);
