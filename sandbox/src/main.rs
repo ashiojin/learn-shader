@@ -23,7 +23,7 @@ use crate::{
     light::{LightState, change_light, update_rotate_light},
     random::RandomPlugin,
     sample::{
-        SamplePlugin, SampleState, extended_material::ReloadReq, init_globals,
+        SamplePlugin, SampleState, extended_material::ReloadReq,
     },
 };
 
@@ -36,7 +36,6 @@ pub fn start() {
 }
 
 fn main() {
-    init_globals();
     #[cfg(not(target_arch = "wasm32"))]
     run_app();
 }
@@ -107,12 +106,14 @@ fn run_app() {
 fn poll_api_commands(
     mut reload_reqs: MessageWriter<ReloadReq>,
     mut sample_state: Option<ResMut<SampleState>>,
+    mut custom_shader: ResMut<crate::sample::material::CustomMaterialShader>,
+    mut extended_shader: ResMut<crate::sample::extended_material::ExtendedMaterialShader>,
 ) {
+    let mut reload = false;
     for cmd in crate::api_shared::pop_commands() {
         match cmd {
             crate::api_shared::ApiCommand::Reload => {
-                reload_reqs.write(ReloadReq);
-                info!("Reload requested via unified API");
+                reload = true;
             }
             crate::api_shared::ApiCommand::SelectSampleMode(mode) => {
                 info!("API requested sample mode selection: {}", mode);
@@ -135,6 +136,16 @@ fn poll_api_commands(
                 }
             }
         }
+    }
+    if reload {
+        if let Some(src) = crate::api_shared::read_wgsl("CustomMaterial") {
+            custom_shader.0 = src;
+        }
+        if let Some(src) = crate::api_shared::read_wgsl("ExtendedMaterial") {
+            extended_shader.0 = src;
+        }
+        reload_reqs.write(ReloadReq);
+        info!("Reload requested via unified API");
     }
 }
 

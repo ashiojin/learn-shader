@@ -51,11 +51,26 @@ pub fn update_app_status(status: AppStatus) {
     }
 }
 
+static CUSTOM_MATERIAL_SHADER: OnceLock<RwLock<String>> = OnceLock::new();
+static EXTENDED_MATERIAL_SHADER: OnceLock<RwLock<String>> = OnceLock::new();
+
 /// Read WGSL shader text by type name.
 pub fn read_wgsl(shader_type: &str) -> Option<String> {
     match shader_type {
-        "ExtendedMaterial" => Some(crate::sample::extended_material::read_global_res()),
-        "CustomMaterial" => Some(crate::sample::material::read_custom_material()),
+        "ExtendedMaterial" => Some(
+            EXTENDED_MATERIAL_SHADER
+                .get_or_init(|| RwLock::new(include_str!("shaders/extended_material.wgsl").to_string()))
+                .read()
+                .unwrap()
+                .clone(),
+        ),
+        "CustomMaterial" => Some(
+            CUSTOM_MATERIAL_SHADER
+                .get_or_init(|| RwLock::new(include_str!("shaders/fragment.wgsl").to_string()))
+                .read()
+                .unwrap()
+                .clone(),
+        ),
         _ => None,
     }
 }
@@ -64,14 +79,26 @@ pub fn read_wgsl(shader_type: &str) -> Option<String> {
 pub fn write_wgsl(shader_type: &str, body: &str) -> bool {
     match shader_type {
         "ExtendedMaterial" => {
-            crate::sample::extended_material::write_global_res(body);
-            send_command(ApiCommand::Reload);
-            true
+            let lock = EXTENDED_MATERIAL_SHADER
+                .get_or_init(|| RwLock::new(include_str!("shaders/extended_material.wgsl").to_string()));
+            if let Ok(mut guard) = lock.write() {
+                *guard = body.to_string();
+                send_command(ApiCommand::Reload);
+                true
+            } else {
+                false
+            }
         }
         "CustomMaterial" => {
-            crate::sample::material::write_custom_material(body);
-            send_command(ApiCommand::Reload);
-            true
+            let lock = CUSTOM_MATERIAL_SHADER
+                .get_or_init(|| RwLock::new(include_str!("shaders/fragment.wgsl").to_string()));
+            if let Ok(mut guard) = lock.write() {
+                *guard = body.to_string();
+                send_command(ApiCommand::Reload);
+                true
+            } else {
+                false
+            }
         }
         _ => false,
     }

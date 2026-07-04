@@ -21,26 +21,25 @@ use crate::sample::{
     billboard::add_billboard_component,
     emitter::{auto_play, spawn_single_gltf_scene, spawn_trail_from_emmiter},
     extended_material::{
-        ReloadReq, init_extended_material_global, load_global_res, request_load_extended_material,
+        ReloadReq, load_global_res, request_load_extended_material,
     },
-    material::{apply_sandbox_fx_meshes, init_custom_material_global},
+    material::apply_sandbox_fx_meshes,
     scene_mod::{draw_gizmo_for_trail_meshes, update_trail_emitter_positions},
 };
 
 pub struct SamplePlugin;
 
-// TODO: This is a bit of a hack to initialize the global resources for the materials. We should
-// find a better way to do this. WASM API can then read and write the global resources immidiately
-// without having to wait for the initialization systems to run.
-pub fn init_globals() {
-    init_custom_material_global();
-    init_extended_material_global();
-}
-
 impl Plugin for SamplePlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<material::SandboxExtension>();
         app.register_type::<material::SandboxMeshFxConfigExtension>();
+
+        app.insert_resource(material::CustomMaterialShader(
+            crate::api_shared::read_wgsl("CustomMaterial").unwrap_or_default(),
+        ));
+        app.insert_resource(extended_material::ExtendedMaterialShader(
+            crate::api_shared::read_wgsl("ExtendedMaterial").unwrap_or_default(),
+        ));
 
         if let Some(mut handlers) = app.world_mut()
             .resource_mut::<bevy::gltf::extensions::GltfExtensionHandlers>()
