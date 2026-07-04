@@ -14,7 +14,7 @@ use camera::SatelliteCamera;
 use crate::{
     background::BackgroundPlugin,
     config::{ConfigState, draw_gizmo, draw_xy_grid_gizmo},
-    light::{LightState, change_light, update_rotate_light},
+    light::LightPlugin,
     random::RandomPlugin,
     sample::{
         SamplePlugin, SampleState, extended_material::ReloadReq,
@@ -71,9 +71,9 @@ fn run_app() {
             SamplePlugin,
             camera::SatelliteCameraPlugin,
             BackgroundPlugin,
+            LightPlugin,
         ))
         .insert_resource(ConfigState::default())
-        .insert_resource(LightState::default())
         .add_systems(Startup, (setup,))
         .add_systems(
             Update,
@@ -85,8 +85,6 @@ fn run_app() {
                 sync_telemetry_cache,
             ),
         )
-        .add_systems(Update, update_rotate_light)
-        .add_systems(Update, change_light.run_if(resource_changed::<LightState>))
         .run();
 }
 
@@ -193,16 +191,6 @@ fn handle_sample_input(
 }
 
 
-fn handle_light_input(
-    keys: &ButtonInput<KeyCode>,
-    light_state: &mut ResMut<LightState>,
-) {
-    // press l to toggle light pattern
-    if keys.just_pressed(KeyCode::KeyL) {
-        light_state.next_pattern();
-    }
-}
-
 fn handle_gizmo_input(
     keys: &ButtonInput<KeyCode>,
     other_state: &mut ResMut<ConfigState>,
@@ -222,9 +210,7 @@ fn react_to_keyevent(
     keys: Res<ButtonInput<KeyCode>>,
     mut sample_state: ResMut<SampleState>,
     mut other_state: ResMut<ConfigState>,
-    mut light_state: ResMut<LightState>,
 ) {
     handle_sample_input(&keys, &mut sample_state);
-    handle_light_input(&keys, &mut light_state);
     handle_gizmo_input(&keys, &mut other_state);
 }

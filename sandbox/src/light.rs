@@ -253,3 +253,27 @@ pub fn update_rotate_light(time: Res<Time>, mut query: Query<&mut Transform, Wit
         );
     }
 }
+
+pub fn handle_light_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut light_state: ResMut<LightState>,
+) {
+    // press l to toggle light pattern
+    if keys.just_pressed(KeyCode::KeyL) {
+        light_state.next_pattern();
+    }
+}
+
+pub struct LightPlugin;
+
+impl Plugin for LightPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<LightState>()
+            .add_systems(Update, (
+                handle_light_input,
+                update_rotate_light,
+                change_light.run_if(resource_changed::<LightState>),
+            ));
+    }
+}
+
