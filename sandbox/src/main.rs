@@ -13,7 +13,7 @@ use camera::SatelliteCamera;
 
 use crate::{
     background::BackgroundPlugin,
-    config::{ConfigState, draw_gizmo, draw_xy_grid_gizmo},
+    config::DebugGizmoPlugin,
     light::LightPlugin,
     random::RandomPlugin,
     sample::{
@@ -72,15 +72,13 @@ fn run_app() {
             camera::SatelliteCameraPlugin,
             BackgroundPlugin,
             LightPlugin,
+            DebugGizmoPlugin,
         ))
-        .insert_resource(ConfigState::default())
         .add_systems(Startup, (setup,))
         .add_systems(
             Update,
             (
                 react_to_keyevent,
-                draw_gizmo,
-                draw_xy_grid_gizmo,
                 poll_api_commands,
                 sync_telemetry_cache,
             ),
@@ -191,26 +189,9 @@ fn handle_sample_input(
 }
 
 
-fn handle_gizmo_input(
-    keys: &ButtonInput<KeyCode>,
-    other_state: &mut ResMut<ConfigState>,
-) {
-    // press 0 to toggle gizmo
-    if keys.just_pressed(KeyCode::Digit0) {
-        other_state.toggle_gizmo_cross();
-    }
-
-    // press 9 to toggle gizmo for debug
-    if keys.just_pressed(KeyCode::Digit9) {
-        other_state.toggle_gizmo_for_debug();
-    }
-}
-
 fn react_to_keyevent(
     keys: Res<ButtonInput<KeyCode>>,
     mut sample_state: ResMut<SampleState>,
-    mut other_state: ResMut<ConfigState>,
 ) {
     handle_sample_input(&keys, &mut sample_state);
-    handle_gizmo_input(&keys, &mut other_state);
 }

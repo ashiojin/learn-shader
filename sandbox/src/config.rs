@@ -65,6 +65,33 @@ pub fn draw_xy_grid_gizmo(
             color,
         );
     }
-
-
 }
+
+pub fn handle_gizmo_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut config_state: ResMut<ConfigState>,
+) {
+    // press 0 to toggle gizmo
+    if keys.just_pressed(KeyCode::Digit0) {
+        config_state.toggle_gizmo_cross();
+    }
+
+    // press 9 to toggle gizmo for debug
+    if keys.just_pressed(KeyCode::Digit9) {
+        config_state.toggle_gizmo_for_debug();
+    }
+}
+
+pub struct DebugGizmoPlugin;
+
+impl Plugin for DebugGizmoPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<ConfigState>()
+            .add_systems(Update, (
+                handle_gizmo_input,
+                draw_gizmo,
+                draw_xy_grid_gizmo,
+            ));
+    }
+}
+
