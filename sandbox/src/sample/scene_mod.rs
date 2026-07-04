@@ -158,3 +158,22 @@ pub fn update_trail_emitter_positions(
         }
     }
 }
+
+pub fn draw_gizmo_for_trail_meshes(
+    mut gizmos: Gizmos,
+    other_state: Res<crate::config::ConfigState>,
+    q_trail_positions: Query<(&CurrentTrailPositions, &PreviousTrailPositions)>,
+) {
+    if !other_state.enable_gizmos_for_debug() {
+        return;
+    }
+    for (current_trail_positions, previous_trail_positions) in q_trail_positions.iter() {
+        let current_begin = current_trail_positions.begin();
+        let current_end = current_trail_positions.end();
+        let previous_begin = previous_trail_positions.begin();
+        let previous_end = previous_trail_positions.end();
+
+        gizmos.arrow(current_begin, current_end, bevy::color::palettes::css::RED);
+        gizmos.arrow(previous_begin, previous_end, bevy::color::palettes::css::GREEN);
+    }
+}

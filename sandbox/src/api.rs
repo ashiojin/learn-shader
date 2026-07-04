@@ -62,10 +62,8 @@ async fn post_command(
 }
 
 async fn read_wgsl(Path(shader_type): Path<String>) -> impl IntoResponse {
-    if shader_type == "ExtendedMaterial" {
-        (StatusCode::OK, crate::sample::extended_material::read_global_res())
-    } else if shader_type == "CustomMaterial" {
-        (StatusCode::OK, crate::sample::material::read_custom_material())
+    if let Some(content) = crate::api_shared::read_wgsl(&shader_type) {
+        (StatusCode::OK, content)
     } else {
         (StatusCode::NOT_FOUND, "Unknown shader type".to_string())
     }
@@ -76,13 +74,7 @@ async fn write_wgsl(
     State(_state): State<AppState>,
     body: String,
 ) -> impl IntoResponse {
-    if shader_type == "ExtendedMaterial" {
-        crate::sample::extended_material::write_global_res(&body);
-        crate::api_shared::send_command(crate::api_shared::ApiCommand::Reload);
-        (StatusCode::OK, "WGSL updated".to_string())
-    } else if shader_type == "CustomMaterial" {
-        crate::sample::material::write_custom_material(&body);
-        crate::api_shared::send_command(crate::api_shared::ApiCommand::Reload);
+    if crate::api_shared::write_wgsl(&shader_type, &body) {
         (StatusCode::OK, "WGSL updated".to_string())
     } else {
         (StatusCode::NOT_FOUND, "Unknown shader type".to_string())

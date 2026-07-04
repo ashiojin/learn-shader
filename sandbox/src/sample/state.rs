@@ -16,19 +16,44 @@ pub enum SampleType {
 }
 
 impl SampleType {
-    pub fn get_next(&self) -> Self {
+    pub const fn all_variants() -> &'static [Self] {
+        &[
+            Self::Saru,
+            Self::ArmAndRod,
+            Self::Plane,
+            Self::Cube,
+            Self::Cone,
+            Self::Sphere,
+            Self::Ring,
+            Self::SphericalZone,
+            Self::Belt,
+            Self::Emitter1,
+        ]
+    }
+
+    pub fn as_str(&self) -> &'static str {
         match self {
-            SampleType::Saru => SampleType::ArmAndRod,
-            SampleType::ArmAndRod => SampleType::Plane,
-            SampleType::Plane => SampleType::Cube,
-            SampleType::Cube => SampleType::Cone,
-            SampleType::Cone => SampleType::Sphere,
-            SampleType::Sphere => SampleType::Ring,
-            SampleType::Ring => SampleType::SphericalZone,
-            SampleType::SphericalZone => SampleType::Belt,
-            SampleType::Belt => SampleType::Emitter1,
-            SampleType::Emitter1 => SampleType::Saru,
+            Self::Saru => "Saru",
+            Self::ArmAndRod => "ArmAndRod",
+            Self::Plane => "Plane",
+            Self::Cube => "Cube",
+            Self::Cone => "Cone",
+            Self::Sphere => "Sphere",
+            Self::Ring => "Ring",
+            Self::SphericalZone => "SphericalZone",
+            Self::Belt => "Belt",
+            Self::Emitter1 => "Emitter1",
         }
+    }
+
+    pub fn from_str(s: &str) -> Option<Self> {
+        Self::all_variants().iter().find(|v| v.as_str() == s).cloned()
+    }
+
+    pub fn get_next(&self) -> Self {
+        let variants = Self::all_variants();
+        let idx = variants.iter().position(|v| v == self).unwrap_or(0);
+        variants[(idx + 1) % variants.len()].clone()
     }
 }
 
@@ -41,12 +66,30 @@ pub enum SampleMaterialType {
 }
 
 impl SampleMaterialType {
-    pub fn get_next(&self) -> Self {
+    pub const fn all_variants() -> &'static [Self] {
+        &[
+            Self::CustomMaterial,
+            Self::ExtendedMaterial,
+            Self::UvTexture,
+        ]
+    }
+
+    pub fn as_str(&self) -> &'static str {
         match self {
-            SampleMaterialType::CustomMaterial => SampleMaterialType::UvTexture,
-            SampleMaterialType::UvTexture => SampleMaterialType::ExtendedMaterial,
-            SampleMaterialType::ExtendedMaterial => SampleMaterialType::CustomMaterial,
+            Self::CustomMaterial => "CustomMaterial",
+            Self::ExtendedMaterial => "ExtendedMaterial",
+            Self::UvTexture => "UvTexture",
         }
+    }
+
+    pub fn from_str(s: &str) -> Option<Self> {
+        Self::all_variants().iter().find(|v| v.as_str() == s).cloned()
+    }
+
+    pub fn get_next(&self) -> Self {
+        let variants = Self::all_variants();
+        let idx = variants.iter().position(|v| v == self).unwrap_or(0);
+        variants[(idx + 1) % variants.len()].clone()
     }
 }
 

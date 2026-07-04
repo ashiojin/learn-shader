@@ -298,7 +298,4 @@ pub fn apply_sandbox_fx_meshes(
     }
 }
 
-pub fn reload_shaders(asset_server: &AssetServer) {
-    asset_server.reload(SHADER_ASSET_PATH);
-    asset_server.reload(MY_EXTENSION_SHADER_PATH);
-}
+

@@ -10,7 +10,7 @@ pub mod state;
 
 pub use emitter::{despawn_expired, spawn_mesh_from_emitter, spawn_single_mesh};
 pub use material::{
-    CustomMaterial, apply_sandbox_materials, insert_sample_material, reload_shaders,
+    CustomMaterial, apply_sandbox_materials, insert_sample_material,
 };
 pub use spawner::refresh_sample_mesh;
 pub use state::{SampleModel, SampleState};
@@ -24,7 +24,7 @@ use crate::sample::{
         ReloadReq, init_extended_material_global, load_global_res, request_load_extended_material,
     },
     material::{apply_sandbox_fx_meshes, init_custom_material_global},
-    scene_mod::update_trail_emitter_positions,
+    scene_mod::{draw_gizmo_for_trail_meshes, update_trail_emitter_positions},
 };
 
 pub struct SamplePlugin;
@@ -88,6 +88,7 @@ impl Plugin for SamplePlugin {
                 apply_sandbox_materials,
                 apply_sandbox_fx_meshes,
                 add_billboard_component,
+                draw_gizmo_for_trail_meshes,
             ),
         )
         .add_systems(

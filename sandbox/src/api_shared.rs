@@ -50,3 +50,29 @@ pub fn update_app_status(status: AppStatus) {
         *guard = status;
     }
 }
+
+/// Read WGSL shader text by type name.
+pub fn read_wgsl(shader_type: &str) -> Option<String> {
+    match shader_type {
+        "ExtendedMaterial" => Some(crate::sample::extended_material::read_global_res()),
+        "CustomMaterial" => Some(crate::sample::material::read_custom_material()),
+        _ => None,
+    }
+}
+
+/// Write WGSL shader text by type name and trigger a reload.
+pub fn write_wgsl(shader_type: &str, body: &str) -> bool {
+    match shader_type {
+        "ExtendedMaterial" => {
+            crate::sample::extended_material::write_global_res(body);
+            send_command(ApiCommand::Reload);
+            true
+        }
+        "CustomMaterial" => {
+            crate::sample::material::write_custom_material(body);
+            send_command(ApiCommand::Reload);
+            true
+        }
+        _ => false,
+    }
+}

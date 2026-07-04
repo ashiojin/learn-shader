@@ -19,11 +19,11 @@ use camera::SatelliteCamera;
 use crate::{
     background::change_background,
     camera::{ZoomDirection, update_camera_follower},
-    config::{ConfigState, draw_gizmo, draw_gizmo_for_trail_meshes, draw_xy_grid_gizmo},
+    config::{ConfigState, draw_gizmo, draw_xy_grid_gizmo},
     light::{LightState, change_light, update_rotate_light},
     random::RandomPlugin,
     sample::{
-        SamplePlugin, SampleState, extended_material::ReloadReq, init_globals, reload_shaders,
+        SamplePlugin, SampleState, extended_material::ReloadReq, init_globals,
     },
 };
 
@@ -89,7 +89,6 @@ fn run_app() {
             (
                 react_to_keyevent,
                 draw_gizmo,
-                draw_gizmo_for_trail_meshes,
                 draw_xy_grid_gizmo,
                 poll_api_commands,
                 sync_telemetry_cache,
@@ -118,44 +117,20 @@ fn poll_api_commands(
             crate::api_shared::ApiCommand::SelectSampleMode(mode) => {
                 info!("API requested sample mode selection: {}", mode);
                 if let Some(state) = sample_state.as_deref_mut() {
-                    match mode.as_str() {
-                        "Saru" => state.sample_type = crate::sample::state::SampleType::Saru,
-                        "ArmAndRod" => {
-                            state.sample_type = crate::sample::state::SampleType::ArmAndRod
-                        }
-                        "Plane" => state.sample_type = crate::sample::state::SampleType::Plane,
-                        "Cube" => state.sample_type = crate::sample::state::SampleType::Cube,
-                        "Cone" => state.sample_type = crate::sample::state::SampleType::Cone,
-                        "Sphere" => state.sample_type = crate::sample::state::SampleType::Sphere,
-                        "Ring" => state.sample_type = crate::sample::state::SampleType::Ring,
-                        "SphericalZone" => {
-                            state.sample_type = crate::sample::state::SampleType::SphericalZone
-                        }
-                        "Belt" => state.sample_type = crate::sample::state::SampleType::Belt,
-                        "Emitter1" => {
-                            state.sample_type = crate::sample::state::SampleType::Emitter1
-                        }
-                        _ => warn!("Unknown sample mode requested via API: {}", mode),
+                    if let Some(sample_type) = crate::sample::state::SampleType::from_str(&mode) {
+                        state.sample_type = sample_type;
+                    } else {
+                        warn!("Unknown sample mode requested via API: {}", mode);
                     }
                 }
             }
             crate::api_shared::ApiCommand::SelectMaterialMode(mode) => {
                 info!("API requested material mode selection: {}", mode);
                 if let Some(state) = sample_state.as_deref_mut() {
-                    match mode.as_str() {
-                        "CustomMaterial" => {
-                            state.material_type =
-                                crate::sample::state::SampleMaterialType::CustomMaterial
-                        }
-                        "ExtendedMaterial" => {
-                            state.material_type =
-                                crate::sample::state::SampleMaterialType::ExtendedMaterial
-                        }
-                        "UvTexture" => {
-                            state.material_type =
-                                crate::sample::state::SampleMaterialType::UvTexture
-                        }
-                        _ => warn!("Unknown material mode requested via API: {}", mode),
+                    if let Some(material_type) = crate::sample::state::SampleMaterialType::from_str(&mode) {
+                        state.material_type = material_type;
+                    } else {
+                        warn!("Unknown material mode requested via API: {}", mode);
                     }
                 }
             }
@@ -165,25 +140,16 @@ fn poll_api_commands(
 
 fn sync_telemetry_cache(sample_state: Option<Res<SampleState>>) {
     if let Some(state) = sample_state {
-        let current_sample_mode = format!("{:?}", state.sample_type);
-        let available_sample_modes = vec![
-            "Saru".to_string(),
-            "ArmAndRod".to_string(),
-            "Plane".to_string(),
-            "Cube".to_string(),
-            "Cone".to_string(),
-            "Sphere".to_string(),
-            "Ring".to_string(),
-            "SphericalZone".to_string(),
-            "Belt".to_string(),
-            "Emitter1".to_string(),
-        ];
-        let current_material_mode = format!("{:?}", state.material_type);
-        let available_material_modes = vec![
-            "CustomMaterial".to_string(),
-            "ExtendedMaterial".to_string(),
-            "UvTexture".to_string(),
-        ];
+        let current_sample_mode = state.sample_type.as_str().to_string();
+        let available_sample_modes = crate::sample::state::SampleType::all_variants()
+            .iter()
+            .map(|v| v.as_str().to_string())
+            .collect();
+        let current_material_mode = state.material_type.as_str().to_string();
+        let available_material_modes = crate::sample::state::SampleMaterialType::all_variants()
+            .iter()
+            .map(|v| v.as_str().to_string())
+            .collect();
         crate::api_shared::update_app_status(crate::api_shared::AppStatus {
             current_sample_mode,
             available_sample_modes,
@@ -207,7 +173,6 @@ fn setup(mut commands: Commands) {
 fn react_to_keyevent(
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
-    asset_server: Res<AssetServer>,
     mut sample_state: ResMut<SampleState>,
     mut sattelite_camera: Single<(&mut SatelliteCamera, &mut Transform)>,
     mut other_state: ResMut<ConfigState>,
@@ -219,9 +184,9 @@ fn react_to_keyevent(
         sample_state.next_sample();
     }
 
-    // press R to reload shader
+    // press R to respawn emitter and models
     if keys.just_pressed(KeyCode::KeyR) {
-        reload_shaders(&asset_server);
+        sample_state.set_changed();
     }
 
     // press WASD to rotate camera
