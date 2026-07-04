@@ -169,15 +169,9 @@ fn setup(mut commands: Commands) {
     ));
 }
 
-#[allow(clippy::too_many_arguments)]
-fn react_to_keyevent(
-    keys: Res<ButtonInput<KeyCode>>,
-    time: Res<Time>,
-    mut sample_state: ResMut<SampleState>,
-    mut sattelite_camera: Single<(&mut SatelliteCamera, &mut Transform)>,
-    mut other_state: ResMut<ConfigState>,
-    mut background: ResMut<BackgroundState>,
-    mut light_state: ResMut<LightState>,
+fn handle_sample_input(
+    keys: &ButtonInput<KeyCode>,
+    sample_state: &mut ResMut<SampleState>,
 ) {
     // press N to switch to next sample
     if keys.just_pressed(KeyCode::KeyN) {
@@ -189,6 +183,23 @@ fn react_to_keyevent(
         sample_state.set_changed();
     }
 
+    // press 1 to switch material
+    if keys.just_pressed(KeyCode::Digit1) {
+        sample_state.next_material();
+    }
+
+    // press 2 to toggle billboard
+    if keys.just_pressed(KeyCode::Digit2) {
+        sample_state.toggle_billboard();
+    }
+}
+
+fn handle_camera_input(
+    keys: &ButtonInput<KeyCode>,
+    time: &Time,
+    camera: &mut SatelliteCamera,
+    transform: &mut Transform,
+) {
     // press WASD to rotate camera
     // press Z to zoom in, X to zoom out
     // press Q to reset camera
@@ -202,7 +213,7 @@ fn react_to_keyevent(
         KeyCode::KeyX,
     ]) {
         if keys.just_pressed(KeyCode::KeyQ) {
-            sattelite_camera.0.reset();
+            camera.reset();
         } else {
             let direction = if keys.pressed(KeyCode::KeyW) {
                 Some(camera::RotateDirection::Up)
@@ -223,36 +234,41 @@ fn react_to_keyevent(
                 None
             };
             if let Some(direction) = direction {
-                sattelite_camera.0.rotate(direction, time.delta_secs());
+                camera.rotate(direction, time.delta_secs());
             }
             if let Some(zoom_direction) = zoom_direction {
-                sattelite_camera.0.zoom(zoom_direction, time.delta_secs());
+                camera.zoom(zoom_direction, time.delta_secs());
             }
         }
-        let new_transform = sattelite_camera.0.make_transform();
-        sattelite_camera.1.clone_from(&new_transform);
+        let new_transform = camera.make_transform();
+        transform.clone_from(&new_transform);
     }
+}
 
+fn handle_background_input(
+    keys: &ButtonInput<KeyCode>,
+    background: &mut BackgroundState,
+) {
     // press b to toggle background
     if keys.just_pressed(KeyCode::KeyB) {
         background.next();
     }
+}
 
+fn handle_light_input(
+    keys: &ButtonInput<KeyCode>,
+    light_state: &mut LightState,
+) {
     // press l to toggle light pattern
     if keys.just_pressed(KeyCode::KeyL) {
         light_state.next_pattern();
     }
+}
 
-    // press 1 to switch material
-    if keys.just_pressed(KeyCode::Digit1) {
-        sample_state.next_material();
-    }
-
-    // press 2 to toggle billboard
-    if keys.just_pressed(KeyCode::Digit2) {
-        sample_state.toggle_billboard();
-    }
-
+fn handle_gizmo_input(
+    keys: &ButtonInput<KeyCode>,
+    other_state: &mut ConfigState,
+) {
     // press 0 to toggle gizmo
     if keys.just_pressed(KeyCode::Digit0) {
         other_state.toggle_gizmo_cross();
@@ -262,4 +278,24 @@ fn react_to_keyevent(
     if keys.just_pressed(KeyCode::Digit9) {
         other_state.toggle_gizmo_for_debug();
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn react_to_keyevent(
+    keys: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
+    mut sample_state: ResMut<SampleState>,
+    mut sattelite_camera: Single<(&mut SatelliteCamera, &mut Transform)>,
+    mut other_state: ResMut<ConfigState>,
+    mut background: ResMut<BackgroundState>,
+    mut light_state: ResMut<LightState>,
+) {
+    handle_sample_input(&keys, &mut sample_state);
+
+    let (camera, transform) = &mut *sattelite_camera;
+    handle_camera_input(&keys, &time, camera, transform);
+
+    handle_background_input(&keys, &mut background);
+    handle_light_input(&keys, &mut light_state);
+    handle_gizmo_input(&keys, &mut other_state);
 }
