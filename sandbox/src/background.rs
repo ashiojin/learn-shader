@@ -106,3 +106,26 @@ fn spawn_background_checkerboard(
         Background,
     ));
 }
+
+pub fn handle_background_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut background: ResMut<BackgroundState>,
+) {
+    // press b to toggle background
+    if keys.just_pressed(KeyCode::KeyB) {
+        background.next();
+    }
+}
+
+pub struct BackgroundPlugin;
+
+impl Plugin for BackgroundPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<BackgroundState>()
+            .add_systems(Update, (
+                handle_background_input,
+                change_background.run_if(resource_changed::<BackgroundState>),
+            ));
+    }
+}
+

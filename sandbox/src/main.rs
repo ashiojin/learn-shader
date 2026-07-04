@@ -9,11 +9,10 @@ mod light;
 mod random;
 mod sample;
 
-use background::BackgroundState;
 use camera::SatelliteCamera;
 
 use crate::{
-    background::change_background,
+    background::BackgroundPlugin,
     config::{ConfigState, draw_gizmo, draw_xy_grid_gizmo},
     light::{LightState, change_light, update_rotate_light},
     random::RandomPlugin,
@@ -71,9 +70,9 @@ fn run_app() {
             RandomPlugin,
             SamplePlugin,
             camera::SatelliteCameraPlugin,
+            BackgroundPlugin,
         ))
         .insert_resource(ConfigState::default())
-        .insert_resource(BackgroundState::default())
         .insert_resource(LightState::default())
         .add_systems(Startup, (setup,))
         .add_systems(
@@ -87,10 +86,6 @@ fn run_app() {
             ),
         )
         .add_systems(Update, update_rotate_light)
-        .add_systems(
-            Update,
-            change_background.run_if(resource_changed::<BackgroundState>),
-        )
         .add_systems(Update, change_light.run_if(resource_changed::<LightState>))
         .run();
 }
@@ -198,16 +193,6 @@ fn handle_sample_input(
 }
 
 
-fn handle_background_input(
-    keys: &ButtonInput<KeyCode>,
-    background: &mut ResMut<BackgroundState>,
-) {
-    // press b to toggle background
-    if keys.just_pressed(KeyCode::KeyB) {
-        background.next();
-    }
-}
-
 fn handle_light_input(
     keys: &ButtonInput<KeyCode>,
     light_state: &mut ResMut<LightState>,
@@ -237,11 +222,9 @@ fn react_to_keyevent(
     keys: Res<ButtonInput<KeyCode>>,
     mut sample_state: ResMut<SampleState>,
     mut other_state: ResMut<ConfigState>,
-    mut background: ResMut<BackgroundState>,
     mut light_state: ResMut<LightState>,
 ) {
     handle_sample_input(&keys, &mut sample_state);
-    handle_background_input(&keys, &mut background);
     handle_light_input(&keys, &mut light_state);
     handle_gizmo_input(&keys, &mut other_state);
 }
