@@ -1,10 +1,6 @@
 use bevy::prelude::*;
 
-#[cfg(not(target_arch = "wasm32"))]
-mod api;
-
-#[cfg(target_arch = "wasm32")]
-pub mod wasm_api;
+pub mod api;
 
 mod background;
 mod camera;
@@ -41,10 +37,7 @@ fn main() {
 }
 
 fn run_app() {
-    #[cfg(not(target_arch = "wasm32"))]
-    std::thread::spawn(move || {
-        api::spawn_api_server();
-    });
+    api::spawn_api_server();
 
     let asset_root_path = std::env::var("ASSETS_DIR").unwrap_or("assets".into());
     let default_plugin = DefaultPlugins
