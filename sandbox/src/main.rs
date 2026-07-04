@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 pub mod api;
 
+pub mod billboard;
 mod background;
 mod camera;
 mod config;
@@ -13,6 +14,7 @@ use camera::SatelliteCamera;
 
 use crate::{
     background::BackgroundPlugin,
+    billboard::BillboardPlugin,
     config::DebugGizmoPlugin,
     light::LightPlugin,
     random::RandomPlugin,
@@ -73,6 +75,7 @@ fn run_app() {
             BackgroundPlugin,
             LightPlugin,
             DebugGizmoPlugin,
+            BillboardPlugin,
         ))
         .add_systems(Startup, (setup,))
         .add_systems(
