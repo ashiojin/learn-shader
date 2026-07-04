@@ -32,10 +32,8 @@ impl MyExtension {
     }
 }
 
-pub const MY_EXTENSION_SHADER_PATH: &str = "shaders/extended_material.wgsl";
 impl MaterialExtension for MyExtension {
     fn fragment_shader() -> bevy::shader::ShaderRef {
-        //MY_EXTENSION_SHADER_PATH.into()
         ShaderRef::Handle(EXTENDED_MATERIAL_WGSL_UUID.into())
     }
 
@@ -44,7 +42,6 @@ impl MaterialExtension for MyExtension {
     }
 
     fn vertex_shader() -> bevy::shader::ShaderRef {
-        //MY_EXTENSION_SHADER_PATH.into()
         ShaderRef::Handle(EXTENDED_MATERIAL_WGSL_UUID.into())
     }
 }

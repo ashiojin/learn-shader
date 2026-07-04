@@ -89,7 +89,7 @@ impl SampleMaterialType {
     pub fn get_next(&self) -> Self {
         let variants = Self::all_variants();
         let idx = variants.iter().position(|v| v == self).unwrap_or(0);
-        variants[(idx + 1) % variants.len()].clone()
+        variants[(idx + 1) % variants.len()]
     }
 }
 

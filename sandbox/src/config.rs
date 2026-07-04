@@ -31,7 +31,7 @@ pub fn draw_gizmo(
     other_state: Res<ConfigState>,
     sample_model: Query<&Transform, With<SampleModel>>,
 ) {
-    if other_state.enable_gizmos_for_models {
+    if other_state.enable_gizmos_for_models() {
         for transform in sample_model.iter() {
             let pos = transform.translation;
             gizmos.arrow(pos - Vec3::X, pos + Vec3::X, css::RED);

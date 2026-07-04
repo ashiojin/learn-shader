@@ -24,8 +24,6 @@ pub struct CustomMaterial {
     _weggl2_padding_16b: u32,
 }
 
-pub const SHADER_ASSET_PATH: &str = "shaders/fragment.wgsl";
-
 #[derive(Resource)]
 pub struct CustomMaterialShader(pub String);
 
@@ -180,6 +178,7 @@ impl bevy::gltf::extensions::GltfExtensionHandler for ReplaceMaterialGltfExtensi
     }
 }
 
+#[allow(clippy::type_complexity)]
 #[allow(clippy::too_many_arguments)]
 pub fn apply_sandbox_materials(
     mut commands: Commands,
@@ -189,7 +188,7 @@ pub fn apply_sandbox_materials(
     asset_server: Res<AssetServer>,
     sample_state: Res<SampleState>,
     time: Res<Time>,
-    #[allow(clippy::type_complexity)] query: Query<
+    query: Query<
         (
             Entity,
             &SandboxExtension,
