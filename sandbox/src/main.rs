@@ -13,14 +13,13 @@ mod sample;
 use camera::SatelliteCamera;
 
 use crate::{
+    api::UnifiedApiPlugin,
     background::BackgroundPlugin,
     billboard::BillboardPlugin,
     config::DebugGizmoPlugin,
     light::LightPlugin,
     random::RandomPlugin,
-    sample::{
-        SamplePlugin, SampleState, extended_material::ReloadReq,
-    },
+    sample::{SamplePlugin, SampleState},
 };
 
 pub mod api_shared;
@@ -37,8 +36,6 @@ fn main() {
 }
 
 fn run_app() {
-    api::spawn_api_server();
-
     let asset_root_path = std::env::var("ASSETS_DIR").unwrap_or("assets".into());
     let default_plugin = DefaultPlugins
         .set(AssetPlugin {
@@ -76,85 +73,18 @@ fn run_app() {
             LightPlugin,
             DebugGizmoPlugin,
             BillboardPlugin,
+            UnifiedApiPlugin,
         ))
         .add_systems(Startup, (setup,))
         .add_systems(
             Update,
             (
                 react_to_keyevent,
-                poll_api_commands,
-                sync_telemetry_cache,
             ),
         )
         .run();
 }
 
-fn poll_api_commands(
-    mut reload_reqs: MessageWriter<ReloadReq>,
-    mut sample_state: Option<ResMut<SampleState>>,
-    mut custom_shader: ResMut<crate::sample::material::CustomMaterialShader>,
-    mut extended_shader: ResMut<crate::sample::extended_material::ExtendedMaterialShader>,
-) {
-    let mut reload = false;
-    for cmd in crate::api_shared::pop_commands() {
-        match cmd {
-            crate::api_shared::ApiCommand::Reload => {
-                reload = true;
-            }
-            crate::api_shared::ApiCommand::SelectSampleMode(mode) => {
-                info!("API requested sample mode selection: {}", mode);
-                if let Some(state) = sample_state.as_deref_mut() {
-                    if let Some(sample_type) = crate::sample::state::SampleType::from_str(&mode) {
-                        state.sample_type = sample_type;
-                    } else {
-                        warn!("Unknown sample mode requested via API: {}", mode);
-                    }
-                }
-            }
-            crate::api_shared::ApiCommand::SelectMaterialMode(mode) => {
-                info!("API requested material mode selection: {}", mode);
-                if let Some(state) = sample_state.as_deref_mut() {
-                    if let Some(material_type) = crate::sample::state::SampleMaterialType::from_str(&mode) {
-                        state.material_type = material_type;
-                    } else {
-                        warn!("Unknown material mode requested via API: {}", mode);
-                    }
-                }
-            }
-        }
-    }
-    if reload {
-        if let Some(src) = crate::api_shared::read_wgsl("CustomMaterial") {
-            custom_shader.0 = src;
-        }
-        if let Some(src) = crate::api_shared::read_wgsl("ExtendedMaterial") {
-            extended_shader.0 = src;
-        }
-        reload_reqs.write(ReloadReq);
-        info!("Reload requested via unified API");
-    }
-}
-
-fn sync_telemetry_cache(sample_state: Option<Res<SampleState>>) {
-    if let Some(state) = sample_state {
-        let current_sample_mode = state.sample_type.as_str().to_string();
-        let available_sample_modes = crate::sample::state::SampleType::all_variants()
-            .iter()
-            .map(|v| v.as_str().to_string())
-            .collect();
-        let current_material_mode = state.material_type.as_str().to_string();
-        let available_material_modes = crate::sample::state::SampleMaterialType::all_variants()
-            .iter()
-            .map(|v| v.as_str().to_string())
-            .collect();
-        crate::api_shared::update_app_status(crate::api_shared::AppStatus {
-            current_sample_mode,
-            available_sample_modes,
-            current_material_mode,
-            available_material_modes,
-        });
-    }
-}
 
 fn setup(mut commands: Commands) {
     // camera
