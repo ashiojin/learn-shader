@@ -105,7 +105,6 @@ impl Plugin for SamplePlugin {
             Update,
             (
                 auto_play,
-                (update_trail_emitter_positions, spawn_trail_from_emmiter).chain(),
             ),
         )
         .add_systems(
@@ -113,6 +112,12 @@ impl Plugin for SamplePlugin {
             (billboard::update_billboard_transform,)
                 .chain()
                 .before(TransformSystems::Propagate),
+        )
+        .add_systems(
+            PostUpdate,
+            (update_trail_emitter_positions, spawn_trail_from_emmiter)
+                .chain()
+                .after(TransformSystems::Propagate),
         );
     }
 }
