@@ -14,7 +14,6 @@ use camera::SatelliteCamera;
 
 use crate::{
     background::change_background,
-    camera::{ZoomDirection, update_camera_follower},
     config::{ConfigState, draw_gizmo, draw_xy_grid_gizmo},
     light::{LightState, change_light, update_rotate_light},
     random::RandomPlugin,
@@ -71,6 +70,7 @@ fn run_app() {
             myshaderlib::MyShaderLibPlugin,
             RandomPlugin,
             SamplePlugin,
+            camera::SatelliteCameraPlugin,
         ))
         .insert_resource(ConfigState::default())
         .insert_resource(BackgroundState::default())
@@ -86,7 +86,6 @@ fn run_app() {
                 sync_telemetry_cache,
             ),
         )
-        .add_systems(Update, update_camera_follower)
         .add_systems(Update, update_rotate_light)
         .add_systems(
             Update,
@@ -198,56 +197,6 @@ fn handle_sample_input(
     }
 }
 
-fn handle_camera_input(
-    keys: &ButtonInput<KeyCode>,
-    time: &Time,
-    camera: &mut SatelliteCamera,
-    transform: &mut Transform,
-) {
-    // press WASD to rotate camera
-    // press Z to zoom in, X to zoom out
-    // press Q to reset camera
-    if keys.any_pressed([
-        KeyCode::KeyW,
-        KeyCode::KeyA,
-        KeyCode::KeyS,
-        KeyCode::KeyD,
-        KeyCode::KeyQ,
-        KeyCode::KeyZ,
-        KeyCode::KeyX,
-    ]) {
-        if keys.just_pressed(KeyCode::KeyQ) {
-            camera.reset();
-        } else {
-            let direction = if keys.pressed(KeyCode::KeyW) {
-                Some(camera::RotateDirection::Up)
-            } else if keys.pressed(KeyCode::KeyS) {
-                Some(camera::RotateDirection::Down)
-            } else if keys.pressed(KeyCode::KeyA) {
-                Some(camera::RotateDirection::Left)
-            } else if keys.pressed(KeyCode::KeyD) {
-                Some(camera::RotateDirection::Right)
-            } else {
-                None
-            };
-            let zoom_direction = if keys.pressed(KeyCode::KeyZ) {
-                Some(ZoomDirection::In)
-            } else if keys.pressed(KeyCode::KeyX) {
-                Some(ZoomDirection::Out)
-            } else {
-                None
-            };
-            if let Some(direction) = direction {
-                camera.rotate(direction, time.delta_secs());
-            }
-            if let Some(zoom_direction) = zoom_direction {
-                camera.zoom(zoom_direction, time.delta_secs());
-            }
-        }
-        let new_transform = camera.make_transform();
-        transform.clone_from(&new_transform);
-    }
-}
 
 fn handle_background_input(
     keys: &ButtonInput<KeyCode>,
@@ -284,21 +233,14 @@ fn handle_gizmo_input(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn react_to_keyevent(
     keys: Res<ButtonInput<KeyCode>>,
-    time: Res<Time>,
     mut sample_state: ResMut<SampleState>,
-    mut sattelite_camera: Single<(&mut SatelliteCamera, &mut Transform)>,
     mut other_state: ResMut<ConfigState>,
     mut background: ResMut<BackgroundState>,
     mut light_state: ResMut<LightState>,
 ) {
     handle_sample_input(&keys, &mut sample_state);
-
-    let (camera, transform) = &mut *sattelite_camera;
-    handle_camera_input(&keys, &time, camera, transform);
-
     handle_background_input(&keys, &mut background);
     handle_light_input(&keys, &mut light_state);
     handle_gizmo_input(&keys, &mut other_state);

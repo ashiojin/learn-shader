@@ -128,3 +128,62 @@ pub fn update_camera_follower(
         }
     }
 }
+
+pub fn handle_camera_input(
+    keys: bevy::prelude::Res<bevy::prelude::ButtonInput<bevy::prelude::KeyCode>>,
+    time: bevy::prelude::Res<bevy::prelude::Time>,
+    mut sattelite_camera: bevy::ecs::system::Single<(&mut SatelliteCamera, &mut bevy::prelude::Transform)>,
+) {
+    let (camera, transform) = &mut *sattelite_camera;
+    // press WASD to rotate camera
+    // press Z to zoom in, X to zoom out
+    // press Q to reset camera
+    if keys.any_pressed([
+        bevy::prelude::KeyCode::KeyW,
+        bevy::prelude::KeyCode::KeyA,
+        bevy::prelude::KeyCode::KeyS,
+        bevy::prelude::KeyCode::KeyD,
+        bevy::prelude::KeyCode::KeyQ,
+        bevy::prelude::KeyCode::KeyZ,
+        bevy::prelude::KeyCode::KeyX,
+    ]) {
+        if keys.just_pressed(bevy::prelude::KeyCode::KeyQ) {
+            camera.reset();
+        } else {
+            let direction = if keys.pressed(bevy::prelude::KeyCode::KeyW) {
+                Some(RotateDirection::Up)
+            } else if keys.pressed(bevy::prelude::KeyCode::KeyS) {
+                Some(RotateDirection::Down)
+            } else if keys.pressed(bevy::prelude::KeyCode::KeyA) {
+                Some(RotateDirection::Left)
+            } else if keys.pressed(bevy::prelude::KeyCode::KeyD) {
+                Some(RotateDirection::Right)
+            } else {
+                None
+            };
+            let zoom_direction = if keys.pressed(bevy::prelude::KeyCode::KeyZ) {
+                Some(ZoomDirection::In)
+            } else if keys.pressed(bevy::prelude::KeyCode::KeyX) {
+                Some(ZoomDirection::Out)
+            } else {
+                None
+            };
+            if let Some(direction) = direction {
+                camera.rotate(direction, time.delta_secs());
+            }
+            if let Some(zoom_direction) = zoom_direction {
+                camera.zoom(zoom_direction, time.delta_secs());
+            }
+        }
+        let new_transform = camera.make_transform();
+        transform.clone_from(&new_transform);
+    }
+}
+
+pub struct SatelliteCameraPlugin;
+
+impl bevy::prelude::Plugin for SatelliteCameraPlugin {
+    fn build(&self, app: &mut bevy::prelude::App) {
+        app.add_systems(bevy::prelude::Update, (update_camera_follower, handle_camera_input));
+    }
+}
