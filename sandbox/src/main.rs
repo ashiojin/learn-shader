@@ -251,7 +251,7 @@ fn handle_camera_input(
 
 fn handle_background_input(
     keys: &ButtonInput<KeyCode>,
-    background: &mut BackgroundState,
+    background: &mut ResMut<BackgroundState>,
 ) {
     // press b to toggle background
     if keys.just_pressed(KeyCode::KeyB) {
@@ -261,7 +261,7 @@ fn handle_background_input(
 
 fn handle_light_input(
     keys: &ButtonInput<KeyCode>,
-    light_state: &mut LightState,
+    light_state: &mut ResMut<LightState>,
 ) {
     // press l to toggle light pattern
     if keys.just_pressed(KeyCode::KeyL) {
@@ -271,7 +271,7 @@ fn handle_light_input(
 
 fn handle_gizmo_input(
     keys: &ButtonInput<KeyCode>,
-    other_state: &mut ConfigState,
+    other_state: &mut ResMut<ConfigState>,
 ) {
     // press 0 to toggle gizmo
     if keys.just_pressed(KeyCode::Digit0) {
