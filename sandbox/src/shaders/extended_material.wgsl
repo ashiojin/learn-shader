@@ -16,6 +16,94 @@
     pbr_functions::{apply_pbr_lighting, main_pass_post_lighting_processing},
 }
 
+// https://github.com/bevyengine/bevy/blob/81127b3f619b830c95a24d67df0e3abaf7ad5ca3/crates/bevy_pbr/src/render/forward_io.wgsl#L141
+struct MyVertexOutput {
+    // This is `clip position` when the struct is used as a vertex stage output
+    // and `frag coord` when used as a fragment stage input
+    @builtin(position) position: vec4<f32>,
+    @location(0) world_position: vec4<f32>,
+    @location(1) world_normal: vec3<f32>,
+#ifdef VERTEX_UVS_A
+    @location(2) uv: vec2<f32>,
+#endif
+#ifdef VERTEX_UVS_B
+    @location(3) uv_b: vec2<f32>,
+#endif
+#ifdef VERTEX_TANGENTS
+    @location(4) world_tangent: vec4<f32>,
+#endif
+#ifdef VERTEX_COLORS
+    @location(5) color: vec4<f32>,
+#endif
+#ifdef VERTEX_OUTPUT_INSTANCE_INDEX
+    @location(6) @interpolate(flat) instance_index: u32,
+#endif
+#ifdef VISIBILITY_RANGE_DITHER
+    @location(7) @interpolate(flat) visibility_range_dither: i32,
+#endif
+
+#ifdef MY_MESHES_ATTRIBUTE_TIME
+    @location(10) time: f32,
+#endif
+}
+
+fn to_my_vert_out(base: VertexOutput, time: f32) -> MyVertexOutput {
+    var out: MyVertexOutput;
+    out.position = base.position;
+    out.world_position = base.world_position;
+    out.world_normal = base.world_normal;
+#ifdef VERTEX_UVS_A
+    out.uv = base.uv;
+#endif
+#ifdef VERTEX_UVS_B
+    out.uv_b = base.uv_b;
+#endif
+#ifdef VERTEX_TANGENTS
+    out.world_tangent = base.world_tangent;
+#endif
+#ifdef VERTEX_COLORS
+    out.color = base.color;
+#endif
+#ifdef VERTEX_OUTPUT_INSTANCE_INDEX
+    out.instance_index = base.instance_index;
+#endif
+#ifdef VISIBILITY_RANGE_DITHER
+    out.visibility_range_dither = base.visibility_range_dither;
+#endif
+#ifdef MY_MESHES_ATTRIBUTE_TIME
+    out.time = time;
+#endif
+
+    return out;
+}
+
+fn to_vert_out(extended: MyVertexOutput) -> VertexOutput {
+    var out: VertexOutput;
+    out.position = extended.position;
+    out.world_position = extended.world_position;
+    out.world_normal = extended.world_normal;
+#ifdef VERTEX_UVS_A
+    out.uv = extended.uv;
+#endif
+#ifdef VERTEX_UVS_B
+    out.uv_b = extended.uv_b;
+#endif
+#ifdef VERTEX_TANGENTS
+    out.world_tangent = extended.world_tangent;
+#endif
+#ifdef VERTEX_COLORS
+    out.color = extended.color;
+#endif
+#ifdef VERTEX_OUTPUT_INSTANCE_INDEX
+    out.instance_index = extended.instance_index;
+#endif
+#ifdef VISIBILITY_RANGE_DITHER
+    out.visibility_range_dither = extended.visibility_range_dither;
+#endif
+
+    return out;
+}
+
 fn shake_xy(pos: vec4<f32>) -> vec4<f32> {
     // 0 - 0.5 : not moved
     // 0.5 - 0.55: position 1
@@ -42,7 +130,9 @@ fn shake_xy(pos: vec4<f32>) -> vec4<f32> {
 #ifdef MORPH_TARGETS
 // The instance_index parameter must match vertex_in.instance_index. This is a work around for a wgpu dx12 bug.
 // See https://github.com/gfx-rs/naga/issues/2416
-fn morph_vertex(vertex_in: Vertex, instance_index: u32) -> Vertex {
+fn morph_vertex(
+    vertex_in: Vertex, instance_index: u32,
+) -> Vertex {
     var vertex = vertex_in;
     let first_vertex = mesh[instance_index].first_vertex_index;
     let vertex_index = vertex.index - first_vertex;
@@ -66,7 +156,12 @@ fn morph_vertex(vertex_in: Vertex, instance_index: u32) -> Vertex {
 #endif
 
 @vertex
-fn vertex(vertex_no_morph: Vertex) -> VertexOutput {
+fn vertex(
+    vertex_no_morph: Vertex,
+#ifdef MY_MESHES_ATTRIBUTE_TIME
+    @location(10) time: f32,
+#endif
+) -> MyVertexOutput {
     var out: VertexOutput;
 
 #ifdef MORPH_TARGETS
@@ -145,7 +240,11 @@ fn vertex(vertex_no_morph: Vertex) -> VertexOutput {
         vertex_no_morph.instance_index, mesh_world_from_local[3]);
 #endif
 
-    return out;
+    var time_: f32 = 0.0;
+#ifdef MY_MESHES_ATTRIBUTE_TIME
+    time_ = time;
+#endif
+    return to_my_vert_out(out, time_);
 }
 
 struct MyExtend1 {
@@ -169,16 +268,21 @@ var<uniform> my_extend_2: MyExtend2;
 
 @fragment
 fn fragment(
-    in: VertexOutput,
+    in_: MyVertexOutput,
     @builtin(front_facing) is_front: bool,
 ) -> FragmentOutput {
+    let in = to_vert_out(in_);
+    var time = my_extend_2.spawned_at;
+#ifdef MY_MESHES_ATTRIBUTE_TIME
+    time = in_.time;
+#endif
     let t_sin = sin(globals.time * 2.);
     var pbr_input = pbr_input_from_standard_material(in, is_front);
     let v = cross(pbr_input.V, pbr_input.N);
     let lv = length(v);
     let l = smoothstep(0.4, 1.0, lv);
 
-    let elapsed = globals.time - my_extend_2.spawned_at;
+    let elapsed = globals.time - time;
     let mix_d = smoothstep(0.4, 1.0, elapsed * 0.8);
     //let mix_d = 0.0;
 

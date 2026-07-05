@@ -1,6 +1,6 @@
 
 use bevy::{
-    asset::uuid::Uuid, mesh::VertexAttributeDescriptor, pbr::{ExtendedMaterial, MaterialExtension}, prelude::*, render::render_resource::{AsBindGroup, SpecializedMeshPipeline}, shader::ShaderRef,
+    asset::uuid::Uuid, pbr::{ExtendedMaterial, MaterialExtension}, prelude::*, render::render_resource::AsBindGroup, shader::ShaderRef,
 };
 
 #[derive(Asset, AsBindGroup, Reflect, Debug, Clone, Default)]
@@ -42,10 +42,10 @@ impl MaterialExtension for MyExtension {
     }
 
     fn specialize(
-        pipeline: &bevy::pbr::MaterialExtensionPipeline,
+        _pipeline: &bevy::pbr::MaterialExtensionPipeline,
         descriptor: &mut bevy::material::descriptor::RenderPipelineDescriptor,
         layout: &bevy::mesh::MeshVertexBufferLayoutRef,
-        key: bevy::pbr::MaterialExtensionKey<Self>,
+        _key: bevy::pbr::MaterialExtensionKey<Self>,
     ) -> std::prelude::v1::Result<(), bevy::material::specialize::SpecializedMeshPipelineError>
     {
         assert!(descriptor.vertex.buffers.len() == 1, "Expected only one vertex buffer layout for the mesh");
@@ -75,8 +75,16 @@ impl MaterialExtension for MyExtension {
             }
         }
 
-        // TODO: Here, we add our custom mesh attributes for the extended material.
-        // if layout.0.contains(MY_CUSTOM_MESH_ATTRIBUTE) { vertex_attriutes.push(MY_CUSTOM_MESH_ATTRIBUTE.at_shader_location(8)); }
+        if layout.0.contains(my_meshes::ATTRIBUTE_TIME) {
+            vertex_attriutes.push(my_meshes::ATTRIBUTE_TIME.at_shader_location(10));
+            descriptor.vertex.shader_defs.push("MY_MESHES_ATTRIBUTE_TIME".into());
+            if let Some(shader_defs) = descriptor.fragment.as_mut().map(|f| &mut f.shader_defs) {
+                shader_defs.push("MY_MESHES_ATTRIBUTE_TIME".into());
+            }
+            info!("Found my_meshes::ATTRIBUTE_TIME in mesh layout, adding shader def MY_MESHES_ATTRIBUTE_TIME");
+        } else {
+            info!("my_meshes::ATTRIBUTE_TIME not found in mesh layout, shader def MY_MESHES_ATTRIBUTE_TIME not added");
+        }
 
         let vertex_layout = layout.0.get_layout(&vertex_attriutes)?;
         descriptor.vertex.buffers = vec![vertex_layout];
@@ -84,15 +92,6 @@ impl MaterialExtension for MyExtension {
         Ok(())
     }
 }
-fn get_mesh_attr_name_as_idx(idx: usize) -> &'static str {
-    MESH_ATTR_NAMES_AS_IDX.get(idx).copied().unwrap_or("mesh_attr_unknown")
-}
-const MESH_ATTR_NAMES_AS_IDX: [&str; 16] = [
-    "mesh_attr_0", "mesh_attr_1", "mesh_attr_2", "mesh_attr_3",
-    "mesh_attr_4", "mesh_attr_5", "mesh_attr_6", "mesh_attr_7",
-    "mesh_attr_8", "mesh_attr_9", "mesh_attr_10", "mesh_attr_11",
-    "mesh_attr_12", "mesh_attr_13", "mesh_attr_14", "mesh_attr_15",
-];
 
 pub type MyExtendedMaterial = ExtendedMaterial<StandardMaterial, MyExtension>;
 pub type MyExtendedMaterialPlugin = MaterialPlugin<MyExtendedMaterial>;
