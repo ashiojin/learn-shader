@@ -1,3 +1,5 @@
+use bevy::asset::{AssetPath, embedded_asset};
+use bevy::shader::ShaderRef;
 use bevy::{
     asset::uuid::Uuid, color::palettes::css, pbr::ExtendedMaterial, prelude::*,
     render::render_resource::AsBindGroup,
@@ -9,6 +11,10 @@ use crate::sample::extended_material::{
     MyExtendedMaterial, MyExtension, ReloadReq,
 };
 use crate::sample::scene_mod::{TrailEmitter, TrailEmitterTiming};
+
+pub fn init_custom_material(app: &mut App) {
+    embedded_asset!(app, "vertex_for_custom.wgsl");
+}
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone, Default)]
 pub struct CustomMaterial {
@@ -51,12 +57,69 @@ pub fn load_custom_material(
 }
 
 impl Material for CustomMaterial {
+    fn vertex_shader() -> bevy::shader::ShaderRef {
+        ShaderRef::Path(AssetPath::from("embedded://sandbox/sample/vertex_for_custom.wgsl"))
+    }
+
     fn fragment_shader() -> bevy::shader::ShaderRef {
         bevy::shader::ShaderRef::Handle(CUSTOM_MATERIAL_WGSL_UUID.into())
     }
 
     fn alpha_mode(&self) -> AlphaMode {
         AlphaMode::Blend
+    }
+
+    // FIXME: duplicated with ExtendedMaterial
+    fn specialize(
+        _pipeline: &bevy::pbr::MaterialPipeline,
+        descriptor: &mut bevy::material::descriptor::RenderPipelineDescriptor,
+        layout: &bevy::mesh::MeshVertexBufferLayoutRef,
+        _key: bevy::pbr::MaterialPipelineKey<Self>,
+    ) -> Result<(), bevy::material::specialize::SpecializedMeshPipelineError>
+    {
+        assert!(descriptor.vertex.buffers.len() == 1, "Expected only one vertex buffer layout for the mesh");
+
+
+        // Mesh attributes for Bevy PBR
+        // constructed in `specialize()` of `SpecializedMeshPipeline` for `MeshPipeline`
+        // https://github.com/bevyengine/bevy/blob/c6f634ca9f406d68ba5109d921247b654cb42c10/crates/bevy_pbr/src/render/mesh.rs#L3284
+        let base_mesh_attirbutes_list = [
+            // in specialize()
+            (Mesh::ATTRIBUTE_POSITION, 0),
+            (Mesh::ATTRIBUTE_NORMAL, 1),
+            (Mesh::ATTRIBUTE_UV_0, 2),
+            (Mesh::ATTRIBUTE_UV_1, 3),
+            (Mesh::ATTRIBUTE_TANGENT, 4),
+            (Mesh::ATTRIBUTE_COLOR, 5),
+            // in setup_morph_and_skinning_defs()
+            //   https://github.com/bevyengine/bevy/blob/0eac08ae5da33f39d64ad148740c34c14b38c481/crates/bevy_pbr/src/render/mesh.rs#L3275
+            (Mesh::ATTRIBUTE_JOINT_INDEX, 6),
+            (Mesh::ATTRIBUTE_JOINT_WEIGHT, 7),
+        ];
+
+        let mut vertex_attriutes = Vec::new();
+        // reconstruct the vertex attributes list for the mesh.
+        for (attr, loc) in base_mesh_attirbutes_list {
+            if layout.0.contains(attr) {
+                vertex_attriutes.push(attr.at_shader_location(loc));
+            }
+        }
+
+        if layout.0.contains(my_meshes::ATTRIBUTE_TIME) {
+            vertex_attriutes.push(my_meshes::ATTRIBUTE_TIME.at_shader_location(10));
+            descriptor.vertex.shader_defs.push("MY_MESHES_ATTRIBUTE_TIME".into());
+            if let Some(shader_defs) = descriptor.fragment.as_mut().map(|f| &mut f.shader_defs) {
+                shader_defs.push("MY_MESHES_ATTRIBUTE_TIME".into());
+            }
+            info!("Found my_meshes::ATTRIBUTE_TIME in mesh layout, adding shader def MY_MESHES_ATTRIBUTE_TIME");
+        } else {
+            info!("my_meshes::ATTRIBUTE_TIME not found in mesh layout, shader def MY_MESHES_ATTRIBUTE_TIME not added");
+        }
+
+        let vertex_layout = layout.0.get_layout(&vertex_attriutes)?;
+        descriptor.vertex.buffers = vec![vertex_layout];
+
+        Ok(())
     }
 }
 

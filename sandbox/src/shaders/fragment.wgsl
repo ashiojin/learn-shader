@@ -12,6 +12,10 @@
 
 #import simplex_noise_f32::{snoise3D}
 
+#import vertex_for_custom::{
+    MyVertexOutput,
+}
+
 struct CustomMaterial {
     spawned_at: f32,
 
@@ -93,16 +97,34 @@ fn rect(uv:vec2<f32>, p: vec2<f32>, wh: vec2<f32>) -> f32 {
 
 
 @fragment
-fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    var color = vec4(0.0);
-    //color = uneune(in.uv, globals.time);
-    // let color2 = block_noise(in.uv);
-    //color = mix(color, color2, smoothstep(0.49, 0.51, (sin(globals.time * 2.0) + 1.0) / 2.));
-    //color = color;
+fn fragment(in: MyVertexOutput) -> @location(0) vec4<f32> {
+    var color = vec4(0.0, 0.0, 0.0, 1.0);
+    var time: f32;
+#ifdef MY_MESHES_ATTRIBUTE_TIME
+    time = in.time;
+#else
+    time = custom_material.spawned_at;
+#endif
+
+    let elapsed = globals.time - time;
+
+#ifdef MY_MESHES_ATTRIBUTE_TIME
+    // 頂点のtimeあり:軌跡用
+    var sa = in.uv.y - 0.0;
+    let sentan = 0.98;
+    var life = 0.10 * smoothstep(0.0, sentan, sa);
+    if sa > sentan {
+        life += 0.05; 
+    }
+    color.a = (life - elapsed)/(life+0.001);
+    color.r = 1.0;
+    color.g = 0.8;
+    color.b = 0.5;
+#else
+    // そのほか
 
     //let n = 0.0;
     let o = in.uv;
-    let elapsed = globals.time - custom_material.spawned_at;
     let t = fract(globals.time);
     let p = vec2(o.x + 0.01*sin(o.y * 2.*PI), pow(o.y, 0.42));
     let n_move =  vec2(0.0, globals.time * 5.5);
@@ -133,6 +155,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     // }
 
     //let color = truche(in.uv);
-    color.b = in.uv.x;
+    //color.b = in.uv.x;
+#endif
     return vec4<f32>(color);
 }
