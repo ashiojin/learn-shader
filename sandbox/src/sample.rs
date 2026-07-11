@@ -18,9 +18,9 @@ pub use state::{SampleModel, SampleState};
 use my_meshes::FlatRing3d;
 
 use crate::sample::{
-    billboard::add_billboard_component, emitter::{auto_play, spawn_single_gltf_scene, spawn_trail_from_emmiter}, extended_material::{
+    billboard::add_billboard_component, emitter::{auto_play, spawn_single_gltf_scene, spawn_trail_from_emitter}, extended_material::{
         ReloadReq, load_global_res, request_load_extended_material,
-    }, material::{apply_sandbox_fx_meshes, init_custom_material}, scene_mod::{draw_gizmo_for_trail_meshes, update_trail_emitter_positions},
+    }, material::{apply_sandbox_fx_meshes, init_custom_material}, scene_mod::draw_gizmo_for_trail_meshes,
 };
 
 pub struct SamplePlugin;
@@ -95,13 +95,7 @@ impl Plugin for SamplePlugin {
         )
         .add_systems(
             PostUpdate,
-            (
-                update_trail_emitter_positions,
-                ApplyDeferred,
-                spawn_trail_from_emmiter,
-            )
-                .chain()
-                .after(TransformSystems::Propagate),
+            spawn_trail_from_emitter.after(TransformSystems::Propagate),
         );
 
         init_custom_material(app);

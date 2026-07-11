@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{ecs::resource::IsResource, prelude::*};
 use my_meshes::Trail;
 use rand::distr::Distribution;
 
@@ -274,70 +274,137 @@ pub fn auto_play(
     }
 }
 
-pub fn spawn_trail_from_emmiter(
+pub fn spawn_trail_from_emitter(
     mut commands: Commands,
-    query: Query<(
-        Entity,
-        &TrailEmitter,
-        &CurrentTrailPositions,
-        &PreviousTrailPositions,
-    )>,
-    mut meshes: ResMut<Assets<Mesh>>,
+    mut q_trail_emitter: Query<
+        (
+            Entity,
+            &TrailEmitter,
+            &Mesh3d,
+            &GlobalTransform,
+            Option<&mut CurrentTrailPositions>,
+            Option<&mut PreviousTrailPositions>,
+        ),
+        //Without<IsResource>,
+    >,
+    mut assets_meshes: ResMut<Assets<Mesh>>,
     q_animation_players: Query<(Entity, &AnimationPlayer)>,
     q_children: Query<&ChildOf>,
     q_auto_play: Query<(Entity, &AutoPlay)>,
     time: Res<Time>,
 ) {
-    // Make a `Trail` between the current and previous positions of the emitter, and spawn a mesh for it. The mesh should have a lifetime equal to the trail lifetime of the emitter.
-    for (_entity, trail_emitter, current_pos, previous_pos) in query.iter() {
-        let org = current_pos.begin(); // for transform of the mesh entity
-        let curr_root = Vec3::ZERO; // relative to org
-        let curr_tip = current_pos.end() - org;
-        let prev_root = previous_pos.begin() - org;
-        let prev_tip = previous_pos.end() - org;
-
-        let curr_time = time.elapsed_secs();
-        let prev_time = curr_time - time.delta_secs();
-
-        // find AutoPlay from ancestors of the Entity
-        let Some(auto_play) = q_children.iter_ancestors(_entity)
-            .find_map(|e| q_auto_play.get(e).map(|(_, auto_play)| auto_play).ok()) else {
-                info!("Not found AutoPlay: e: {:?}", _entity);
+    // Make a `Trail` between the current and previous positions of the emitter, and spawn a mesh for it.
+    // The mesh should have a lifetime equal to the trail lifetime of the emitter.
+    for (entity, trail_emitter, mesh, global_transform, opt_current, opt_previous) in
+        q_trail_emitter.iter_mut()
+    {
+        let Some(mesh_asset) = assets_meshes.get(&mesh.0) else {
             continue;
         };
 
-        if let Some(timing) = trail_emitter.timing()
-            && let Some(player_entity) = auto_play.player_entity()
-            && let Ok((_entity, player)) = q_animation_players.get(player_entity)
-        {
-            let Some(seek_time) = player.animation(auto_play.node_idx()).map(|a| a.seek_time()) else {
-                debug!("AnimationPlayer for entity {:?} does not have animation node {:?} yet, skipping trail spawn", player_entity, auto_play.node_idx());
+        // Here we assume there are two vertices
+        let Some(vertices) = mesh_asset
+            .attribute(Mesh::ATTRIBUTE_POSITION)
+            .and_then(|attr| attr.as_float3())
+        else {
+            continue;
+        };
+        if vertices.is_empty() {
+            continue;
+        }
+
+        // For now we use only 2 vertices, first and last one, to determine the trail positions.
+        let vertices = [vertices[0], vertices[vertices.len() - 1]];
+        // Get global positions by transforming local vertices using the global transform
+        let global_positions: Vec<Vec3> = vertices
+            .iter()
+            .map(|v| global_transform.transform_point(Vec3::from(*v)))
+            .collect();
+
+        let current_pos = CurrentTrailPositions {
+            begin: global_positions[0],
+            end: global_positions[1],
+        };
+
+        // If we have current positions from a previous frame, we can compute the previous trail positions and spawn a trail
+        if let Some(mut existing_current) = opt_current {
+            let previous_pos = PreviousTrailPositions {
+                begin: existing_current.begin,
+                end: existing_current.end,
+            };
+
+            let org = current_pos.begin(); // for transform of the mesh entity
+            let curr_root = Vec3::ZERO; // relative to org
+            let curr_tip = current_pos.end() - org;
+            let prev_root = previous_pos.begin() - org;
+            let prev_tip = previous_pos.end() - org;
+
+            let curr_time = time.elapsed_secs();
+            let prev_time = curr_time - time.delta_secs();
+
+            // Find AutoPlay from ancestors of the Entity
+            let Some(auto_play) = q_children
+                .iter_ancestors(entity)
+                .find_map(|e| q_auto_play.get(e).map(|(_, auto_play)| auto_play).ok())
+            else {
+                info!("Not found AutoPlay: e: {:?}", entity);
                 continue;
             };
 
-            if !timing.is_active(seek_time) {
-                debug!("TrailEmitter for entity {:?} is not active at elapsed time {:?}, skipping trail spawn", _entity, seek_time);
-                continue;
-            }
-        }
+            if let Some(timing) = trail_emitter.timing()
+                && let Some(player_entity) = auto_play.player_entity()
+                && let Ok((_entity, player)) = q_animation_players.get(player_entity)
+            {
+                let Some(seek_time) = player
+                    .animation(auto_play.node_idx())
+                    .map(|a| a.seek_time())
+                else {
+                    debug!(
+                        "AnimationPlayer for entity {:?} does not have animation node {:?} yet, skipping trail spawn",
+                        player_entity,
+                        auto_play.node_idx()
+                    );
+                    continue;
+                };
 
-        commands.spawn((
-            Mesh3d(
-                meshes.add(
-                    Trail::new(
-                        prev_root, prev_tip, curr_root, curr_tip, prev_time, curr_time,
-                    )
-                    .with_resolution(8)
-                    .mesh(),
+                if !timing.is_active(seek_time) {
+                    debug!(
+                        "TrailEmitter for entity {:?} is not active at elapsed time {:?}, skipping trail spawn",
+                        entity, seek_time
+                    );
+                    continue;
+                }
+            }
+
+            commands.spawn((
+                Mesh3d(
+                    assets_meshes.add(
+                        Trail::new(
+                            prev_root, prev_tip, curr_root, curr_tip, prev_time, curr_time,
+                        )
+                        .with_resolution(8)
+                        .mesh(),
+                    ),
                 ),
-            ),
-            Transform::from_translation(org),
-            GlobalTransform::from(Transform::from_translation(org)),
-            MeshLifetime {
-                lifetime: trail_emitter.lifetime(),
-                spwawned_at: time.elapsed_secs(),
-            },
-            SampleModel::Mesh,
-        ));
+                Transform::from_translation(org),
+                GlobalTransform::from(Transform::from_translation(org)),
+                MeshLifetime {
+                    lifetime: trail_emitter.lifetime(),
+                    spwawned_at: time.elapsed_secs(),
+                },
+                SampleModel::Mesh,
+            ));
+
+            // Update components in-place to avoid the overhead of command insertions in subsequent frames
+            *existing_current = current_pos;
+            if let Some(mut existing_previous) = opt_previous {
+                *existing_previous = previous_pos;
+            } else {
+                commands.entity(entity).try_insert(previous_pos);
+            }
+        } else {
+            // First frame: only insert CurrentTrailPositions component
+            commands.entity(entity).try_insert(current_pos);
+        }
     }
 }
