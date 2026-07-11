@@ -191,6 +191,202 @@ impl MeshBuilder for TrailMeshBuilder {
     }
 }
 
+/// The interpolation mode for the trail mesh.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
+pub enum TrailInterpolationMode {
+    /// Use Catmull-Rom spline interpolation for all segments.
+    #[default]
+    CatmullRom,
+    /// Use Catmull-Rom spline interpolation for older segments, but linear
+    /// interpolation (lerp) for the latest segment leading up to the active emitter.
+    LinearLastSegment,
+}
+
+/// A point along the historical path of a trail emitter.
+#[derive(Debug, Clone)]
+pub struct SplineTrailPoint {
+    pub root: Vec3,
+    pub tip: Vec3,
+    pub time: f32,
+}
+
+/// A spline-interpolated trail mesh builder that generates a single mesh from a history of points.
+pub struct SplineTrail {
+    pub points: Vec<SplineTrailPoint>,
+    pub subdivisions: u32,
+}
+
+impl SplineTrail {
+    pub fn new(points: Vec<SplineTrailPoint>, subdivisions: u32) -> Self {
+        Self { points, subdivisions }
+    }
+
+    /// Build a single Bevy Mesh using the specified interpolation mode.
+    pub fn build_mesh(&self, mode: TrailInterpolationMode) -> Mesh {
+        let n = self.points.len();
+        if n < 2 {
+            return Mesh::new(
+                PrimitiveTopology::TriangleList,
+                RenderAssetUsages::default(),
+            );
+        }
+
+        let total_segments = (n - 1) * self.subdivisions as usize;
+        let total_segments_f = total_segments as f32;
+        
+        struct Slice {
+            root: Vec3,
+            tip: Vec3,
+            time: f32,
+            u: f32,
+        }
+
+        let mut slices = Vec::new();
+
+        for i in 0..n - 1 {
+            let p0 = if i > 0 { &self.points[i - 1] } else { &self.points[0] };
+            let p1 = &self.points[i];
+            let p2 = &self.points[i + 1];
+            let p3 = if i + 2 < n { &self.points[i + 2] } else { &self.points[n - 1] };
+
+            let is_last_segment = i == n - 2;
+            let use_linear = is_last_segment && mode == TrailInterpolationMode::LinearLastSegment;
+
+            let max_s = if is_last_segment { self.subdivisions } else { self.subdivisions - 1 };
+
+            for s in 0..=max_s {
+                let u = s as f32 / self.subdivisions as f32;
+                let global_idx = i * self.subdivisions as usize + s as usize;
+                let global_u = global_idx as f32 / total_segments_f;
+
+                let (root, tip, time) = if use_linear {
+                    (
+                        p1.root.lerp(p2.root, u),
+                        p1.tip.lerp(p2.tip, u),
+                        p1.time + u * (p2.time - p1.time),
+                    )
+                } else {
+                    (
+                        catmull_rom(p0.root, p1.root, p2.root, p3.root, u),
+                        catmull_rom(p0.tip, p1.tip, p2.tip, p3.tip, u),
+                        p1.time + u * (p2.time - p1.time),
+                    )
+                };
+
+                slices.push(Slice { root, tip, time, u: global_u });
+            }
+        }
+
+        let mut vertices = Vec::with_capacity(slices.len() * 2);
+        let mut normals_attr = Vec::with_capacity(slices.len() * 2);
+        let mut uvs = Vec::with_capacity(slices.len() * 2);
+        let mut times = Vec::with_capacity(slices.len() * 2);
+        let mut indices = Vec::new();
+
+        let mut last_valid_normal = Vec3::Y;
+
+        for k in 0..slices.len() {
+            let slice = &slices[k];
+            let dir = (slice.tip - slice.root).normalize_or_zero();
+
+            let move_dir = if k < slices.len() - 1 {
+                (slices[k + 1].root - slice.root).normalize_or_zero()
+            } else if k > 0 {
+                (slice.root - slices[k - 1].root).normalize_or_zero()
+            } else {
+                Vec3::ZERO
+            };
+
+            let mut normal = move_dir.cross(dir).normalize_or_zero();
+            if normal == Vec3::ZERO {
+                normal = last_valid_normal;
+            } else {
+                last_valid_normal = normal;
+            }
+
+            vertices.push(slice.root);
+            vertices.push(slice.tip);
+
+            normals_attr.push(normal);
+            normals_attr.push(normal);
+
+            uvs.push([slice.u, 0.0]);
+            uvs.push([slice.u, 1.0]);
+
+            times.push(slice.time);
+            times.push(slice.time);
+        }
+
+        for i in 0..(slices.len() - 1) {
+            let base = (i * 2) as u32;
+            let next = ((i + 1) * 2) as u32;
+
+            // Face 1: base (root), next (root), base + 1 (tip)
+            indices.push(base);
+            indices.push(next);
+            indices.push(base + 1);
+
+            // Face 2: base + 1 (tip), next (root), next + 1 (tip)
+            indices.push(base + 1);
+            indices.push(next);
+            indices.push(next + 1);
+        }
+
+        let vertex_count = vertices.len();
+        let index_offset = vertex_count as u32;
+
+        let mut other_vertices = vertices.clone();
+        let other_uvs = uvs.clone();
+        let mut other_normals = Vec::with_capacity(vertex_count);
+        let other_times = times.clone();
+
+        for n in &normals_attr {
+            other_normals.push(-*n);
+        }
+
+        vertices.append(&mut other_vertices);
+        uvs.extend(other_uvs);
+        normals_attr.append(&mut other_normals);
+        times.extend(other_times);
+
+        // Indices for the second side (Inner) with reversed winding
+        for i in 0..(slices.len() - 1) {
+            let base = (i * 2) as u32 + index_offset;
+            let next = ((i + 1) * 2) as u32 + index_offset;
+
+            indices.push(base);
+            indices.push(base + 1);
+            indices.push(next);
+
+            indices.push(base + 1);
+            indices.push(next + 1);
+            indices.push(next);
+        }
+
+        Mesh::new(
+            PrimitiveTopology::TriangleList,
+            RenderAssetUsages::default(),
+        )
+        .with_inserted_indices(Indices::U32(indices))
+        .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, vertices)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals_attr)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
+        .with_inserted_attribute(ATTRIBUTE_TIME, times)
+    }
+}
+
+/// Helper function to interpolate using Catmull-Rom spline
+pub fn catmull_rom(p0: Vec3, p1: Vec3, p2: Vec3, p3: Vec3, t: f32) -> Vec3 {
+    let t2 = t * t;
+    let t3 = t2 * t;
+    0.5 * (
+        (2.0 * p1) +
+        (-p0 + p2) * t +
+        (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2 +
+        (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t3
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -223,5 +419,43 @@ mod tests {
 
         // Verify that custom time attribute exists
         assert!(mesh.attribute(ATTRIBUTE_TIME.id).is_some());
+    }
+
+    #[test]
+    fn test_spline_trail_mesh() {
+        let points = vec![
+            SplineTrailPoint {
+                root: Vec3::new(0.0, 0.0, 0.0),
+                tip: Vec3::new(0.0, 1.0, 0.0),
+                time: 0.0,
+            },
+            SplineTrailPoint {
+                root: Vec3::new(1.0, 0.0, 0.0),
+                tip: Vec3::new(1.0, 1.2, 0.0),
+                time: 0.1,
+            },
+            SplineTrailPoint {
+                root: Vec3::new(2.0, 0.0, 1.0),
+                tip: Vec3::new(2.0, 1.5, 1.0),
+                time: 0.2,
+            },
+        ];
+
+        let spline = SplineTrail::new(points, 4);
+        
+        let mesh_cr = spline.build_mesh(TrailInterpolationMode::CatmullRom);
+        let mesh_linear = spline.build_mesh(TrailInterpolationMode::LinearLastSegment);
+
+        // 3 points = 2 segments.
+        // 2 segments * 4 subdivisions = 8 segments total.
+        // 8 segments means 9 slices of vertices.
+        // Each slice has 2 vertices = 18 vertices per side.
+        // Double-sided = 36 vertices total.
+        assert_eq!(mesh_cr.count_vertices(), 36);
+        assert_eq!(mesh_linear.count_vertices(), 36);
+
+        // 8 segments * 2 triangles per side * 3 indices * 2 sides = 96 indices.
+        assert_eq!(mesh_cr.indices().unwrap().len(), 96);
+        assert_eq!(mesh_linear.indices().unwrap().len(), 96);
     }
 }

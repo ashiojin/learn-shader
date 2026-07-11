@@ -1,12 +1,12 @@
-use bevy::{ecs::resource::IsResource, prelude::*};
-use my_meshes::Trail;
+use bevy::prelude::*;
+use my_meshes::{SplineTrail, SplineTrailPoint};
 use rand::distr::Distribution;
 
 use super::state::SampleModel;
 use crate::{
     random::RandomSource,
     sample::scene_mod::{
-        AutoAnimation, CurrentTrailPositions, PreviousTrailPositions, TrailEmitter,
+        AutoAnimation, TrailEmitter, TrailHistory,
     },
 };
 
@@ -282,20 +282,20 @@ pub fn spawn_trail_from_emitter(
             &TrailEmitter,
             &Mesh3d,
             &GlobalTransform,
-            Option<&mut CurrentTrailPositions>,
-            Option<&mut PreviousTrailPositions>,
+            Option<&mut TrailHistory>,
         ),
-        //Without<IsResource>,
     >,
     mut assets_meshes: ResMut<Assets<Mesh>>,
+    q_mesh_3d: Query<&Mesh3d>,
     q_animation_players: Query<(Entity, &AnimationPlayer)>,
     q_children: Query<&ChildOf>,
     q_auto_play: Query<(Entity, &AutoPlay)>,
+    trail_config: Option<Res<crate::config::TrailConfig>>,
     time: Res<Time>,
 ) {
-    // Make a `Trail` between the current and previous positions of the emitter, and spawn a mesh for it.
-    // The mesh should have a lifetime equal to the trail lifetime of the emitter.
-    for (entity, trail_emitter, mesh, global_transform, opt_current, opt_previous) in
+    let current_time = time.elapsed_secs();
+
+    for (entity, trail_emitter, mesh, global_transform, opt_history) in
         q_trail_emitter.iter_mut()
     {
         let Some(mesh_asset) = assets_meshes.get(&mesh.0) else {
@@ -321,90 +321,120 @@ pub fn spawn_trail_from_emitter(
             .map(|v| global_transform.transform_point(Vec3::from(*v)))
             .collect();
 
-        let current_pos = CurrentTrailPositions {
-            begin: global_positions[0],
-            end: global_positions[1],
-        };
+        let current_root = global_positions[0];
+        let current_tip = global_positions[1];
 
-        // If we have current positions from a previous frame, we can compute the previous trail positions and spawn a trail
-        if let Some(mut existing_current) = opt_current {
-            let previous_pos = PreviousTrailPositions {
-                begin: existing_current.begin,
-                end: existing_current.end,
-            };
+        let mut spawn_trail = true;
 
-            let org = current_pos.begin(); // for transform of the mesh entity
-            let curr_root = Vec3::ZERO; // relative to org
-            let curr_tip = current_pos.end() - org;
-            let prev_root = previous_pos.begin() - org;
-            let prev_tip = previous_pos.end() - org;
+        // Find AutoPlay from ancestors of the Entity
+        let opt_auto_play = q_children
+            .iter_ancestors(entity)
+            .find_map(|e| q_auto_play.get(e).map(|(_, auto_play)| auto_play).ok());
 
-            let curr_time = time.elapsed_secs();
-            let prev_time = curr_time - time.delta_secs();
-
-            // Find AutoPlay from ancestors of the Entity
-            let Some(auto_play) = q_children
-                .iter_ancestors(entity)
-                .find_map(|e| q_auto_play.get(e).map(|(_, auto_play)| auto_play).ok())
-            else {
-                info!("Not found AutoPlay: e: {:?}", entity);
-                continue;
-            };
-
+        if let Some(auto_play) = opt_auto_play {
             if let Some(timing) = trail_emitter.timing()
                 && let Some(player_entity) = auto_play.player_entity()
                 && let Ok((_entity, player)) = q_animation_players.get(player_entity)
             {
-                let Some(seek_time) = player
+                if let Some(seek_time) = player
                     .animation(auto_play.node_idx())
                     .map(|a| a.seek_time())
-                else {
+                {
+                    if !timing.is_active(seek_time) {
+                        debug!(
+                            "TrailEmitter for entity {:?} is not active at elapsed time {:?}, skipping trail spawn",
+                            entity, seek_time
+                        );
+                        spawn_trail = false;
+                    }
+                } else {
                     debug!(
                         "AnimationPlayer for entity {:?} does not have animation node {:?} yet, skipping trail spawn",
                         player_entity,
                         auto_play.node_idx()
                     );
-                    continue;
-                };
-
-                if !timing.is_active(seek_time) {
-                    debug!(
-                        "TrailEmitter for entity {:?} is not active at elapsed time {:?}, skipping trail spawn",
-                        entity, seek_time
-                    );
-                    continue;
+                    spawn_trail = false;
                 }
             }
+        } else {
+            info!("Not found AutoPlay: e: {:?}", entity);
+            spawn_trail = false;
+        }
 
-            commands.spawn((
-                Mesh3d(
-                    assets_meshes.add(
-                        Trail::new(
-                            prev_root, prev_tip, curr_root, curr_tip, prev_time, curr_time,
-                        )
-                        .with_resolution(8)
-                        .mesh(),
-                    ),
-                ),
-                Transform::from_translation(org),
-                GlobalTransform::from(Transform::from_translation(org)),
-                MeshLifetime {
-                    lifetime: trail_emitter.lifetime(),
-                    spwawned_at: time.elapsed_secs(),
-                },
-                SampleModel::Mesh,
-            ));
+        // Handle the history queue
+        let mut history = match opt_history {
+            Some(h) => h,
+            None => {
+                let initial_mode = trail_config.as_ref().map(|c| c.mode).unwrap_or(trail_emitter.mode());
+                let mut h = TrailHistory::new(initial_mode, trail_emitter.subdivisions());
+                if spawn_trail {
+                    h.points.push_back(SplineTrailPoint {
+                        root: current_root,
+                        tip: current_tip,
+                        time: current_time,
+                    });
+                }
+                commands.entity(entity).insert(h);
+                continue;
+            }
+        };
 
-            // Update components in-place to avoid the overhead of command insertions in subsequent frames
-            *existing_current = current_pos;
-            if let Some(mut existing_previous) = opt_previous {
-                *existing_previous = previous_pos;
+        // Push new point if spawning is active
+        if spawn_trail {
+            // Avoid inserting identical positions at the exact same timestamp to prevent zero-length divisions
+            let should_push = if let Some(last) = history.points.back() {
+                last.root.distance_squared(current_root) > 1e-6
+                    || last.tip.distance_squared(current_tip) > 1e-6
+                    || (current_time - last.time) > 0.05
             } else {
-                commands.entity(entity).try_insert(previous_pos);
+                true
+            };
+
+            if should_push {
+                history.points.push_back(SplineTrailPoint {
+                    root: current_root,
+                    tip: current_tip,
+                    time: current_time,
+                });
+            }
+        }
+
+        // Prune old points
+        let cutoff_time = current_time - trail_emitter.lifetime();
+        while history.points.len() > 1 && history.points[0].time < cutoff_time {
+            history.points.pop_front();
+        }
+
+        // Rebuild or clean up trail entity
+        if history.points.len() >= 2 {
+            let spline_trail = SplineTrail::new(
+                history.points.iter().cloned().collect(),
+                history.subdivisions,
+            );
+            let new_mesh = spline_trail.build_mesh(history.mode);
+
+            if let Some(trail_ent) = history.trail_entity {
+                if let Ok(mesh_3d) = q_mesh_3d.get(trail_ent) {
+                    if let Some(mut mesh_asset) = assets_meshes.get_mut(&mesh_3d.0) {
+                        *mesh_asset = new_mesh;
+                    }
+                }
+            } else {
+                let mesh_handle = assets_meshes.add(new_mesh);
+                let spawned_ent = commands.spawn((
+                    Mesh3d(mesh_handle),
+                    Transform::IDENTITY,
+                    GlobalTransform::IDENTITY,
+                    SampleModel::Mesh,
+                )).id();
+                history.trail_entity = Some(spawned_ent);
             }
         } else {
-            // First frame: only insert CurrentTrailPositions component
-            commands.entity(entity).try_insert(current_pos);
+            // No segments left (or faded completely)
+            if let Some(trail_ent) = history.trail_entity {
+                commands.entity(trail_ent).try_despawn();
+                history.trail_entity = None;
+            }
         }
     }
 }

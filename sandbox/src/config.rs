@@ -82,13 +82,47 @@ pub fn handle_gizmo_input(
     }
 }
 
+#[derive(Resource, Debug, Clone, Copy)]
+pub struct TrailConfig {
+    pub mode: my_meshes::TrailInterpolationMode,
+}
+
+impl Default for TrailConfig {
+    fn default() -> Self {
+        Self {
+            mode: my_meshes::TrailInterpolationMode::LinearLastSegment,
+        }
+    }
+}
+
+pub fn handle_trail_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut trail_config: ResMut<TrailConfig>,
+    mut q_trail_history: Query<&mut crate::sample::scene_mod::TrailHistory>,
+) {
+    if keys.just_pressed(KeyCode::KeyI) {
+        let next_mode = match trail_config.mode {
+            my_meshes::TrailInterpolationMode::CatmullRom => my_meshes::TrailInterpolationMode::LinearLastSegment,
+            my_meshes::TrailInterpolationMode::LinearLastSegment => my_meshes::TrailInterpolationMode::CatmullRom,
+        };
+        trail_config.mode = next_mode;
+        info!("Toggled trail interpolation mode to: {:?}", next_mode);
+
+        for mut history in q_trail_history.iter_mut() {
+            history.mode = next_mode;
+        }
+    }
+}
+
 pub struct DebugGizmoPlugin;
 
 impl Plugin for DebugGizmoPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ConfigState>()
+            .init_resource::<TrailConfig>()
             .add_systems(Update, (
                 handle_gizmo_input,
+                handle_trail_input,
                 draw_gizmo,
                 draw_xy_grid_gizmo,
             ));
