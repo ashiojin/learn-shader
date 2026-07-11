@@ -332,6 +332,7 @@ pub fn spawn_trail_from_emmiter(
                 ),
             ),
             Transform::from_translation(org),
+            GlobalTransform::from(Transform::from_translation(org)),
             MeshLifetime {
                 lifetime: trail_emitter.lifetime(),
                 spwawned_at: time.elapsed_secs(),

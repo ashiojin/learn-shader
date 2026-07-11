@@ -95,7 +95,11 @@ impl Plugin for SamplePlugin {
         )
         .add_systems(
             PostUpdate,
-            (update_trail_emitter_positions, spawn_trail_from_emmiter)
+            (
+                update_trail_emitter_positions,
+                ApplyDeferred,
+                spawn_trail_from_emmiter,
+            )
                 .chain()
                 .after(TransformSystems::Propagate),
         );
