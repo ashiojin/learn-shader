@@ -619,9 +619,9 @@ fn queue_custom_meshes(
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn custom_draw_system(
     world: &World,
-    #[allow(clippy::type_complexity)]
     view: ViewQuery<(
         &ExtractedCamera,
         &ExtractedView,
