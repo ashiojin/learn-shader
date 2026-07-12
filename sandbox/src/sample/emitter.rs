@@ -5,9 +5,7 @@ use rand::distr::Distribution;
 use super::state::SampleModel;
 use crate::{
     random::RandomSource,
-    sample::scene_mod::{
-        AutoAnimation, TrailEmitter, TrailHistory,
-    },
+    sample::scene_mod::{AutoAnimation, TrailEmitter, TrailHistory},
 };
 
 #[derive(Component, Debug, Clone)]
@@ -274,17 +272,17 @@ pub fn auto_play(
     }
 }
 
+#[allow(clippy::type_complexity)]
+#[allow(clippy::too_many_arguments)]
 pub fn spawn_trail_from_emitter(
     mut commands: Commands,
-    mut q_trail_emitter: Query<
-        (
-            Entity,
-            &TrailEmitter,
-            &Mesh3d,
-            &GlobalTransform,
-            Option<&mut TrailHistory>,
-        ),
-    >,
+    mut q_trail_emitter: Query<(
+        Entity,
+        &TrailEmitter,
+        &Mesh3d,
+        &GlobalTransform,
+        Option<&mut TrailHistory>,
+    )>,
     mut assets_meshes: ResMut<Assets<Mesh>>,
     q_mesh_3d: Query<&Mesh3d>,
     q_animation_players: Query<(Entity, &AnimationPlayer)>,
@@ -295,9 +293,7 @@ pub fn spawn_trail_from_emitter(
 ) {
     let current_time = time.elapsed_secs();
 
-    for (entity, trail_emitter, mesh, global_transform, opt_history) in
-        q_trail_emitter.iter_mut()
-    {
+    for (entity, trail_emitter, mesh, global_transform, opt_history) in q_trail_emitter.iter_mut() {
         let Some(mesh_asset) = assets_meshes.get(&mesh.0) else {
             continue;
         };
@@ -365,7 +361,10 @@ pub fn spawn_trail_from_emitter(
         let mut history = match opt_history {
             Some(h) => h,
             None => {
-                let initial_mode = trail_config.as_ref().map(|c| c.mode).unwrap_or(trail_emitter.mode());
+                let initial_mode = trail_config
+                    .as_ref()
+                    .map(|c| c.mode)
+                    .unwrap_or(trail_emitter.mode());
                 let mut h = TrailHistory::new(initial_mode, trail_emitter.subdivisions());
                 if spawn_trail {
                     h.points.push_back(SplineTrailPoint {
@@ -414,19 +413,21 @@ pub fn spawn_trail_from_emitter(
             let new_mesh = spline_trail.build_mesh(history.mode);
 
             if let Some(trail_ent) = history.trail_entity {
-                if let Ok(mesh_3d) = q_mesh_3d.get(trail_ent) {
-                    if let Some(mut mesh_asset) = assets_meshes.get_mut(&mesh_3d.0) {
-                        *mesh_asset = new_mesh;
-                    }
+                if let Ok(mesh_3d) = q_mesh_3d.get(trail_ent)
+                    && let Some(mut mesh_asset) = assets_meshes.get_mut(&mesh_3d.0)
+                {
+                    *mesh_asset = new_mesh;
                 }
             } else {
                 let mesh_handle = assets_meshes.add(new_mesh);
-                let spawned_ent = commands.spawn((
-                    Mesh3d(mesh_handle),
-                    Transform::IDENTITY,
-                    GlobalTransform::IDENTITY,
-                    SampleModel::Mesh,
-                )).id();
+                let spawned_ent = commands
+                    .spawn((
+                        Mesh3d(mesh_handle),
+                        Transform::IDENTITY,
+                        GlobalTransform::IDENTITY,
+                        SampleModel::Mesh,
+                    ))
+                    .id();
                 history.trail_entity = Some(spawned_ent);
             }
         } else {

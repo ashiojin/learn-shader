@@ -50,10 +50,14 @@ impl MaterialExtension for MyExtension {
     {
         assert!(descriptor.vertex.buffers.len() == 1, "Expected only one vertex buffer layout for the mesh");
 
+        // WORKAROUND
+        let is_prepass_pipeline = descriptor.label.as_ref().is_some_and(|s| s == "pbr_prepass_pipeline");
+
+
         // Mesh attributes for Bevy PBR
         // constructed in `specialize()` of `SpecializedMeshPipeline` for `MeshPipeline`
-        // https://github.com/bevyengine/bevy/blob/c6f634ca9f406d68ba5109d921247b654cb42c10/crates/bevy_pbr/src/render/mesh.rs#L3284
-        let base_mesh_attirbutes_list = [
+        // https://github.com/bevyengine/bevy/blob/main/crates/bevy_pbr/src/render/mesh.rs
+        let base_mesh_attirbutes_list_for_render = [
             // in specialize()
             (Mesh::ATTRIBUTE_POSITION, 0),
             (Mesh::ATTRIBUTE_NORMAL, 1),
@@ -62,20 +66,39 @@ impl MaterialExtension for MyExtension {
             (Mesh::ATTRIBUTE_TANGENT, 4),
             (Mesh::ATTRIBUTE_COLOR, 5),
             // in setup_morph_and_skinning_defs()
-            //   https://github.com/bevyengine/bevy/blob/0eac08ae5da33f39d64ad148740c34c14b38c481/crates/bevy_pbr/src/render/mesh.rs#L3275
+            //   https://github.com/bevyengine/bevy/blob/main/crates/bevy_pbr/src/render/mesh.rs
             (Mesh::ATTRIBUTE_JOINT_INDEX, 6),
             (Mesh::ATTRIBUTE_JOINT_WEIGHT, 7),
         ];
+        let base_mesh_attributes_list_for_prepass = [
+            // see bevy_pbr/src/prepass/mod.rs
+            (Mesh::ATTRIBUTE_POSITION, 0),
+            (Mesh::ATTRIBUTE_UV_0, 1),
+            (Mesh::ATTRIBUTE_UV_1, 2),
+            (Mesh::ATTRIBUTE_NORMAL, 3),
+            (Mesh::ATTRIBUTE_TANGENT, 4),
+            (Mesh::ATTRIBUTE_COLOR, 7),
+
+            // in setup_morph_and_skinning_defs
+            (Mesh::ATTRIBUTE_JOINT_INDEX, 5),
+            (Mesh::ATTRIBUTE_JOINT_WEIGHT, 6),
+        ];
+
+        let base_mesh_attirbutes_list = if is_prepass_pipeline {
+            &base_mesh_attributes_list_for_prepass
+        } else {
+            &base_mesh_attirbutes_list_for_render
+        };
 
         let mut vertex_attriutes = Vec::new();
         // reconstruct the vertex attributes list for the mesh.
         for (attr, loc) in base_mesh_attirbutes_list {
-            if layout.0.contains(attr) {
-                vertex_attriutes.push(attr.at_shader_location(loc));
+            if layout.0.contains(*attr) {
+                vertex_attriutes.push(attr.at_shader_location(*loc));
             }
         }
 
-        if layout.0.contains(my_meshes::ATTRIBUTE_TIME) {
+        if layout.0.contains(my_meshes::ATTRIBUTE_TIME) && !is_prepass_pipeline{
             vertex_attriutes.push(my_meshes::ATTRIBUTE_TIME.at_shader_location(10));
             descriptor.vertex.shader_defs.push("MY_MESHES_ATTRIBUTE_TIME".into());
             if let Some(shader_defs) = descriptor.fragment.as_mut().map(|f| &mut f.shader_defs) {
@@ -89,7 +112,12 @@ impl MaterialExtension for MyExtension {
         let vertex_layout = layout.0.get_layout(&vertex_attriutes)?;
         descriptor.vertex.buffers = vec![vertex_layout];
 
+
         Ok(())
+    }
+
+    fn enable_prepass() -> bool {
+        false
     }
 }
 
