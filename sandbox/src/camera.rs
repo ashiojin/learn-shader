@@ -132,9 +132,14 @@ pub fn update_camera_follower(
 pub fn handle_camera_input(
     keys: bevy::prelude::Res<bevy::prelude::ButtonInput<bevy::prelude::KeyCode>>,
     time: bevy::prelude::Res<bevy::prelude::Time>,
+    mouse_buttons: bevy::prelude::Res<bevy::prelude::ButtonInput<bevy::prelude::MouseButton>>,
+    accumulated_mouse_motion: bevy::prelude::Res<bevy::input::mouse::AccumulatedMouseMotion>,
+    accumulated_mouse_scroll: bevy::prelude::Res<bevy::input::mouse::AccumulatedMouseScroll>,
     mut sattelite_camera: bevy::ecs::system::Single<(&mut SatelliteCamera, &mut bevy::prelude::Transform)>,
 ) {
     let (camera, transform) = &mut *sattelite_camera;
+    let mut changed = false;
+
     // press WASD to rotate camera
     // press Z to zoom in, X to zoom out
     // press Q to reset camera
@@ -147,6 +152,7 @@ pub fn handle_camera_input(
         bevy::prelude::KeyCode::KeyZ,
         bevy::prelude::KeyCode::KeyX,
     ]) {
+        changed = true;
         if keys.just_pressed(bevy::prelude::KeyCode::KeyQ) {
             camera.reset();
         } else {
@@ -175,6 +181,33 @@ pub fn handle_camera_input(
                 camera.zoom(zoom_direction, time.delta_secs());
             }
         }
+    }
+
+    // Mouse drag rotation controls
+    if mouse_buttons.pressed(bevy::prelude::MouseButton::Left) {
+        let delta = accumulated_mouse_motion.delta;
+        if delta != bevy::math::Vec2::ZERO {
+            let sensitivity = 0.005;
+            let dy = -delta.x * sensitivity;
+            let dx = -delta.y * sensitivity;
+            camera.add_rotate_y(dy);
+            camera.add_rotate_x(dx);
+            changed = true;
+        }
+    }
+
+    // Mouse wheel zoom controls
+    let scroll_delta = accumulated_mouse_scroll.delta.y;
+    if scroll_delta != 0.0 {
+        let sensitivity = 0.075 * camera.zoom_speed;
+        camera.distance -= scroll_delta * sensitivity;
+        if camera.distance < 0.1 {
+            camera.distance = 0.1;
+        }
+        changed = true;
+    }
+
+    if changed {
         let new_transform = camera.make_transform();
         transform.clone_from(&new_transform);
     }
