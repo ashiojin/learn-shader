@@ -20,6 +20,9 @@ pub struct PreloadedGltf {
     pub handles: Vec<Handle<Gltf>>,
 }
 
+/// Owns the loading state machine. Must be added to the app BEFORE
+/// `SamplePlugin`, which references `AppState` in its run conditions and
+/// `OnEnter` systems (this plugin is what calls `init_state::<AppState>()`).
 pub struct PreloadPlugin;
 
 impl Plugin for PreloadPlugin {
@@ -47,7 +50,7 @@ fn preload_gltf_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     let handles: Vec<Handle<Gltf>> = paths
         .into_iter()
-        .map(|path| asset_server.load::<Gltf>(path.to_string()))
+        .map(|path| asset_server.load::<Gltf>(path))
         .collect();
 
     info!("Preloading {} GLTF asset(s)", handles.len());
