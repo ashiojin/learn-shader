@@ -13,9 +13,6 @@ pub use emitter::{despawn_expired, spawn_mesh_from_emitter, spawn_single_mesh};
 pub use material::{
     CustomMaterial, apply_sandbox_materials, insert_sample_material,
 };
-// `AppState` is not yet consumed anywhere else in this crate; it is wired up
-// by the follow-up task that gates `refresh_sample_mesh` on `AppState::Running`.
-#[allow(unused_imports)]
 pub use preload::{AppState, PreloadPlugin};
 pub use spawner::refresh_sample_mesh;
 pub use state::{SampleModel, SampleState};
@@ -70,8 +67,11 @@ impl Plugin for SamplePlugin {
         .add_systems(Update, (load_global_res, material::load_custom_material))
         .add_systems(
             Update,
-            refresh_sample_mesh.run_if(resource_changed::<SampleState>),
+            refresh_sample_mesh
+                .run_if(resource_changed::<SampleState>)
+                .run_if(in_state(AppState::Running)),
         )
+        .add_systems(OnEnter(AppState::Running), trigger_initial_sample)
         .add_systems(
             Update,
             (
@@ -105,4 +105,12 @@ impl Plugin for SamplePlugin {
 
         init_custom_material(app);
     }
+}
+
+/// When preloading finishes and the app enters `Running`, force
+/// `refresh_sample_mesh` to run once so the default sample is spawned. This
+/// avoids relying on first-frame change-detection timing across the state
+/// transition.
+fn trigger_initial_sample(mut sample_state: ResMut<SampleState>) {
+    sample_state.set_changed();
 }
