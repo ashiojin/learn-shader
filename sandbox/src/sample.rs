@@ -4,6 +4,7 @@ mod billboard;
 pub mod emitter;
 pub mod extended_material;
 pub mod material;
+pub mod preload;
 pub mod scene_mod;
 pub mod spawner;
 pub mod state;
@@ -12,6 +13,10 @@ pub use emitter::{despawn_expired, spawn_mesh_from_emitter, spawn_single_mesh};
 pub use material::{
     CustomMaterial, apply_sandbox_materials, insert_sample_material,
 };
+// `AppState` is not yet consumed anywhere else in this crate; it is wired up
+// by the follow-up task that gates `refresh_sample_mesh` on `AppState::Running`.
+#[allow(unused_imports)]
+pub use preload::{AppState, PreloadPlugin};
 pub use spawner::refresh_sample_mesh;
 pub use state::{SampleModel, SampleState};
 

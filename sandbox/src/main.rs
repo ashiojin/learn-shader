@@ -19,7 +19,7 @@ use crate::{
     config::DebugGizmoPlugin,
     light::LightPlugin,
     random::RandomPlugin,
-    sample::{SamplePlugin, SampleState},
+    sample::{PreloadPlugin, SamplePlugin, SampleState},
 };
 
 pub mod api_shared;
@@ -67,6 +67,7 @@ fn run_app() {
             default_plugin,
             myshaderlib::MyShaderLibPlugin,
             RandomPlugin,
+            PreloadPlugin,
             SamplePlugin,
             camera::SatelliteCameraPlugin,
             BackgroundPlugin,
