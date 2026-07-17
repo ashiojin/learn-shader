@@ -1,5 +1,14 @@
 use bevy::prelude::*;
 
+/// Describes a GLTF asset backing a [`SampleType`] variant.
+/// Single source of truth for the sandbox's GLTF file paths, consumed by both
+/// the preloader and `spawn_sample`.
+#[derive(Debug, Clone, Copy)]
+pub struct GltfSampleAsset {
+    pub path: &'static str,
+    pub scene_idx: usize,
+}
+
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub enum SampleType {
     #[default]
@@ -54,6 +63,21 @@ impl SampleType {
         let variants = Self::all_variants();
         let idx = variants.iter().position(|v| v == self).unwrap_or(0);
         variants[(idx + 1) % variants.len()].clone()
+    }
+
+    /// Returns the GLTF asset descriptor for GLTF-backed variants, else `None`.
+    pub fn gltf_asset(&self) -> Option<GltfSampleAsset> {
+        match self {
+            Self::Saru => Some(GltfSampleAsset {
+                path: "models/saru.glb",
+                scene_idx: 0,
+            }),
+            Self::ArmAndRod => Some(GltfSampleAsset {
+                path: "models/poc_arm_and_rod_ex.glb",
+                scene_idx: 0,
+            }),
+            _ => None,
+        }
     }
 }
 
@@ -120,3 +144,40 @@ pub enum SampleModel {
 
 #[derive(Component, Debug)]
 pub struct SampleEmitter;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn gltf_asset_matches_known_variants() {
+        // GLTF-backed variants expose a non-empty path.
+        let saru = SampleType::Saru.gltf_asset().expect("Saru is GLTF-backed");
+        assert_eq!(saru.path, "models/saru.glb");
+        assert_eq!(saru.scene_idx, 0);
+
+        let arm = SampleType::ArmAndRod
+            .gltf_asset()
+            .expect("ArmAndRod is GLTF-backed");
+        assert_eq!(arm.path, "models/poc_arm_and_rod_ex.glb");
+        assert_eq!(arm.scene_idx, 0);
+
+        // Non-GLTF variants return None.
+        assert!(SampleType::Cube.gltf_asset().is_none());
+        assert!(SampleType::Plane.gltf_asset().is_none());
+        assert!(SampleType::Emitter1.gltf_asset().is_none());
+    }
+
+    #[test]
+    fn every_gltf_asset_path_is_non_empty() {
+        for variant in SampleType::all_variants() {
+            if let Some(asset) = variant.gltf_asset() {
+                assert!(
+                    !asset.path.is_empty(),
+                    "{:?} has an empty GLTF path",
+                    variant
+                );
+            }
+        }
+    }
+}

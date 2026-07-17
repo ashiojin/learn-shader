@@ -15,20 +15,22 @@ use super::state::{SampleEmitter, SampleState, SampleType};
 pub fn spawn_sample(sample_type: &SampleType, commands: &mut Commands, meshes: &mut Assets<Mesh>) {
     match sample_type {
         SampleType::Saru => {
+            let asset = sample_type.gltf_asset().expect("Saru is GLTF-backed");
             commands.spawn((
                 SingleGltfEmitter {
-                    gltf_path: "models/saru.glb".to_string(),
-                    scene_idx: 0,
+                    gltf_path: asset.path.to_string(),
+                    scene_idx: asset.scene_idx,
                 },
                 Transform::from_xyz(0., 0., 0.),
                 SampleEmitter,
             ));
         }
         SampleType::ArmAndRod => {
+            let asset = sample_type.gltf_asset().expect("ArmAndRod is GLTF-backed");
             commands.spawn((
                 SingleGltfEmitter {
-                    gltf_path: "models/poc_arm_and_rod_ex.glb".to_string(),
-                    scene_idx: 0,
+                    gltf_path: asset.path.to_string(),
+                    scene_idx: asset.scene_idx,
                 },
                 Transform::from_xyz(0., 0., 0.).with_scale(Vec3::new(0.3, 0.3, 0.3)),
                 SampleEmitter,
