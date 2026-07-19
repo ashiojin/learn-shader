@@ -5,7 +5,7 @@ use rand::distr::Distribution;
 use super::state::SampleModel;
 use crate::{
     random::RandomSource,
-    sample::scene_mod::{AutoAnimation, TrailEmitter, TrailHistory},
+    sample::scene_mod::{TrailEmitter, TrailHistory},
 };
 
 #[derive(Component, Debug, Clone)]
@@ -140,6 +140,7 @@ pub struct SingleGltfEmitter {
 #[derive(Component, Debug, Clone)]
 pub struct AutoPlay {
     node_idx: AnimationNodeIndex,
+    named_node_idx_list: Vec<(String, AnimationNodeIndex)>,
     repeat: bool,
     graph_handle: AnimationGraphHandle,
     /// The entity of the AnimationPlayer that is playing this animation. This is set when the AnimationPlayer is spawned and the AutoPlay system finds it.
@@ -148,11 +149,13 @@ pub struct AutoPlay {
 impl AutoPlay {
     pub fn new(
         node_idx: AnimationNodeIndex,
+        named_node_idx_list: Vec<(String, AnimationNodeIndex)>,
         repeat: bool,
         graph_handle: AnimationGraphHandle,
     ) -> Self {
         Self {
             node_idx,
+            named_node_idx_list,
             repeat,
             graph_handle,
             player_entity: None,
@@ -161,6 +164,14 @@ impl AutoPlay {
 
     pub fn node_idx(&self) -> AnimationNodeIndex {
         self.node_idx
+    }
+
+    pub fn set_node_idx(&mut self, node_idx: AnimationNodeIndex) {
+        self.node_idx = node_idx;
+    }
+
+    pub fn node_idx_list(&self) -> &Vec<(String, AnimationNodeIndex)> {
+        &self.named_node_idx_list
     }
 
     pub fn repeat(&self) -> bool {
@@ -182,92 +193,162 @@ impl AutoPlay {
 
 pub fn spawn_single_gltf_scene(
     mut commands: Commands,
-    mut query: Query<
-        (
-            Entity,
-            &SingleGltfEmitter,
-            &Transform,
-            Option<&AutoAnimation>,
-        ),
-        Added<SingleGltfEmitter>,
-    >,
+    mut query: Query<(Entity, &SingleGltfEmitter, &Transform), Added<SingleGltfEmitter>>,
     asset_server: Res<AssetServer>,
-    mut animation_graphs: ResMut<Assets<AnimationGraph>>,
 ) {
-    for (_entity, emitter, transform, o_anime) in query.iter_mut() {
+    for (_entity, emitter, transform) in query.iter_mut() {
         debug!(
-            "spawn_single_gltf_scene: {:?}, {:?}, {:?}",
-            emitter.gltf_path, emitter.scene_idx, o_anime
+            "spawn_single_gltf_scene: {:?}, {:?}",
+            emitter.gltf_path, emitter.scene_idx
         );
-        let cmd = &mut commands.spawn((
+        commands.spawn((
             WorldAssetRoot(asset_server.load(
                 GltfAssetLabel::Scene(emitter.scene_idx).from_asset(emitter.gltf_path.clone()),
             )),
             *transform,
             SampleModel::Scene,
+            WaitingAnimationGraph(emitter.gltf_path.clone()),
         ));
-
-        if let Some(anime) = o_anime {
-            // Add animation graph
-            let mut animation_grpah = AnimationGraph::new();
-            let h_clip = asset_server.load(
-                GltfAssetLabel::Animation(anime.clip_index()).from_asset(emitter.gltf_path.clone()),
-            );
-            let node = animation_grpah.add_clip(h_clip, 1.0, animation_grpah.root);
-            let h_graph = animation_graphs.add(animation_grpah);
-            //let cmd = cmd.insert(AnimationGraphHandle(h_graph));
-
-            match anime.animation_type() {
-                crate::sample::scene_mod::AnimationType::Repeat => {
-                    cmd.try_insert(AutoPlay::new(node, true, AnimationGraphHandle(h_graph)));
-                }
-            }
-
-            debug!(
-                "Added animation graph: {:?}, node: {:?}, clip_index: {:?}, animation_type: {:?}",
-                cmd.id(),
-                node,
-                anime.clip_index(),
-                anime.animation_type()
-            );
-        }
     }
 }
 
+#[derive(Component, Debug, Clone)]
+pub struct WaitingAnimationGraph(String);
+
+#[derive(Component, Debug, Clone)]
+pub struct WaitingAnimationPlayer;
+
+pub fn insert_animation_graph_with_all_animation(
+    mut commands: Commands,
+    q_scene: Query<(Entity, &WaitingAnimationGraph), With<WaitingAnimationGraph>>,
+    asset_server: Res<AssetServer>,
+    mut animation_graphs: ResMut<Assets<AnimationGraph>>,
+    gltf: Res<Assets<Gltf>>,
+) {
+    for (entity, notyet) in q_scene.iter() {
+        let Some(gltf) = gltf.get(&asset_server.load(notyet.0.clone())) else {
+            error!("Gltf asset not loaded yet: {:?}", notyet.0);
+            continue;
+        };
+
+        let mut graph = AnimationGraph::new();
+        let mut first_node = None;
+        let mut node_list = Vec::new();
+        for (name, clip) in gltf.named_animations.iter() {
+            info!("Adding animation clip to graph: {:?}", entity);
+            let node = graph.add_clip(clip.clone(), 0.0, graph.root);
+            node_list.push((name.to_string(), node));
+
+            if first_node.is_none() {
+                first_node = Some(node);
+            }
+        }
+        if let Some(first_node) = first_node {
+            // set w=1.0
+            let node = graph.get_mut(first_node).unwrap();
+            node.weight = 1.0;
+
+            let h_graph = animation_graphs.add(graph);
+            commands.entity(entity).try_insert((
+                AutoPlay::new(first_node, node_list, true, AnimationGraphHandle(h_graph)),
+                WaitingAnimationPlayer,
+            ));
+        }
+        commands
+            .entity(entity)
+            .try_remove::<WaitingAnimationGraph>();
+    }
+}
+
+#[allow(clippy::type_complexity)]
 pub fn auto_play(
     mut commands: Commands,
-    mut q_animation_players: Query<(Entity, &mut AnimationPlayer), Added<AnimationPlayer>>,
-    mut q_auto_play: Query<(Entity, &mut AutoPlay)>,
+    mut q_animation_players: Query<(Entity, &mut AnimationPlayer), With<AnimationPlayer>>,
+    mut q_auto_play: Query<(Entity, &mut AutoPlay), With<WaitingAnimationPlayer>>,
     q_children: Query<&ChildOf>,
 ) {
-    for (entity, mut player) in q_animation_players.iter_mut() {
+    for (player_entity, mut player) in q_animation_players.iter_mut() {
         debug!(
             "Checking AutoPlay for entity {:?} with AnimationPlayer",
-            entity
+            player_entity
         );
         if let Some(auto_play_entity) = q_children
-            .iter_ancestors(entity)
+            .iter_ancestors(player_entity)
             .find_map(|ancestor| q_auto_play.get(ancestor).map(|(e, _)| e).ok())
         {
             let mut auto_play = q_auto_play.get_mut(auto_play_entity).unwrap().1;
             info!(
                 "Found AutoPlay for entity {:?}, node: {:?}, looped: {:?}",
-                entity,
+                player_entity,
                 auto_play.node_idx(),
                 auto_play.repeat()
             );
 
-            auto_play.set_player_entity(entity);
+            auto_play.set_player_entity(player_entity);
 
             commands
-                .entity(entity)
+                .entity(player_entity)
                 .try_insert(auto_play.graph_handle().clone());
 
-            if auto_play.repeat() {
-                player.play(auto_play.node_idx()).repeat();
-            } else {
-                player.play(auto_play.node_idx());
+            commands
+                .entity(auto_play_entity)
+                .try_remove::<WaitingAnimationPlayer>();
+
+            player.play(auto_play.node_idx());
+        }
+    }
+}
+
+pub fn auto_play_next(
+    mut q_animation_players: Query<(Entity, &mut AnimationPlayer), With<AnimationPlayer>>,
+    mut q_auto_play: Query<(Entity, &mut AutoPlay)>,
+    mut graphs: ResMut<Assets<AnimationGraph>>,
+) {
+    for (root_entity, mut auto_play) in q_auto_play.iter_mut() {
+        let Some(player_entity) = auto_play.player_entity() else {
+            continue;
+        };
+        let Some((_, mut player)) = q_animation_players.get_mut(player_entity).ok() else {
+            continue;
+        };
+        let Some(mut graph) = graphs.get_mut(&auto_play.graph_handle().0) else {
+            continue;
+        };
+
+        // if the current animation is finished, set the next one with weight 1.0 & play it
+        if player
+            .animation(auto_play.node_idx())
+            .map(|a| a.is_finished())
+            .unwrap_or(false)
+        {
+            // all node weight reset to 0.0
+            for (_, node_idx) in auto_play.node_idx_list() {
+                if let Some(node) = graph.get_mut(*node_idx) {
+                    node.weight = 0.0;
+                }
             }
+            player.stop_all();
+
+            let current_node = auto_play.node_idx();
+            let next_node = auto_play
+                .node_idx_list()
+                .iter()
+                .map(|(_name, idx)| idx)
+                .cycle()
+                .skip_while(|&&n| n != current_node)
+                .nth(1)
+                .copied()
+                .unwrap_or(current_node);
+
+            debug!(
+                "AutoPlay: Switching from node {:?} to node {:?} for entity {:?}",
+                current_node, next_node, root_entity
+            );
+            if let Some(node) = graph.get_mut(next_node) {
+                node.weight = 1.0;
+            }
+            player.play(next_node);
+            auto_play.set_node_idx(next_node);
         }
     }
 }
@@ -320,41 +401,37 @@ pub fn spawn_trail_from_emitter(
         let current_root = global_positions[0];
         let current_tip = global_positions[1];
 
-        let mut spawn_trail = true;
+        let mut spawn_trail = false;
 
         // Find AutoPlay from ancestors of the Entity
         let opt_auto_play = q_children
             .iter_ancestors(entity)
             .find_map(|e| q_auto_play.get(e).map(|(_, auto_play)| auto_play).ok());
 
-        if let Some(auto_play) = opt_auto_play {
-            if let Some(timing) = trail_emitter.timing()
-                && let Some(player_entity) = auto_play.player_entity()
-                && let Ok((_entity, player)) = q_animation_players.get(player_entity)
-            {
-                if let Some(seek_time) = player
-                    .animation(auto_play.node_idx())
-                    .map(|a| a.seek_time())
-                {
-                    if !timing.is_active(seek_time) {
-                        debug!(
-                            "TrailEmitter for entity {:?} is not active at elapsed time {:?}, skipping trail spawn",
-                            entity, seek_time
-                        );
-                        spawn_trail = false;
-                    }
+        if let Some(auto_play) = opt_auto_play
+            && let Some(player_entity) = auto_play.player_entity()
+            && let Ok((_entity, player)) = q_animation_players.get(player_entity)
+        {
+            for (playing_anim_nidx, playing_animation) in player.playing_animations() {
+                let seek_time = playing_animation.seek_time();
+                if trail_emitter.timings_of(*playing_anim_nidx).iter().any(|timing| timing.is_on_time(seek_time)) {
+                    debug!(
+                        "TrailEmitter for entity {:?} is active at elapsed time {:?}, spawning trail",
+                        entity, playing_animation.seek_time()
+                    );
+                    spawn_trail = true;
                 } else {
                     debug!(
-                        "AnimationPlayer for entity {:?} does not have animation node {:?} yet, skipping trail spawn",
-                        player_entity,
-                        auto_play.node_idx()
+                        "TrailEmitter for entity {:?} has no timing for playing animation node {:?}, skipping trail spawn",
+                        entity, playing_anim_nidx
                     );
-                    spawn_trail = false;
                 }
             }
         } else {
-            info!("Not found AutoPlay: e: {:?}", entity);
-            spawn_trail = false;
+            debug!(
+                "AnimationPlayer for entity {:?} does not exist or is not playing, skipping trail spawn",
+                entity
+            );
         }
 
         // Handle the history queue

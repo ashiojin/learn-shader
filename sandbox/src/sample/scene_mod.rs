@@ -2,49 +2,26 @@ use bevy::prelude::*;
 use std::collections::VecDeque;
 use my_meshes::{SplineTrailPoint, TrailInterpolationMode};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum AnimationType {
-    #[default]
-    Repeat,
-}
-
-#[derive(Component, Debug, Clone)]
-pub struct AutoAnimation {
-    clip_index: usize,
-    animation_type: AnimationType,
-}
-
-impl AutoAnimation {
-    pub fn new(index: usize, animation_type: AnimationType) -> Self {
-        Self {
-            clip_index: index,
-            animation_type,
-        }
-    }
-
-    pub fn clip_index(&self) -> usize {
-        self.clip_index
-    }
-
-    pub fn animation_type(&self) -> AnimationType {
-        self.animation_type
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct TrailEmitterTiming {
+    pub node_idx: AnimationNodeIndex,
     pub start_time: f32,
     pub end_time: f32,
 }
 impl TrailEmitterTiming {
-    pub fn new(start_time: f32, end_time: f32) -> Self {
+    pub fn new(node_idx: AnimationNodeIndex, start_time: f32, end_time: f32) -> Self {
         Self {
+            node_idx,
             start_time,
             end_time,
         }
     }
 
-    pub fn is_active(&self, time: f32) -> bool {
+    pub fn node_idx(&self) -> AnimationNodeIndex {
+        self.node_idx
+    }
+
+    pub fn is_on_time(&self, time: f32) -> bool {
         time >= self.start_time && time <= self.end_time
     }
 }
@@ -52,7 +29,7 @@ impl TrailEmitterTiming {
 #[derive(Component, Debug, Clone)]
 pub struct TrailEmitter {
     lifetime: f32,
-    timing: Option<TrailEmitterTiming>,
+    timing: Vec<TrailEmitterTiming>,
     mode: TrailInterpolationMode,
     subdivisions: u32,
 }
@@ -62,14 +39,19 @@ impl TrailEmitter {
     pub fn new(lifetime: f32) -> Self {
         Self {
             lifetime,
-            timing: None,
+            timing: vec![],
             mode: TrailInterpolationMode::LinearLastSegment,
             subdivisions: 8,
         }
     }
 
-    pub fn with_timing(mut self, timing: TrailEmitterTiming) -> Self {
-        self.timing = Some(timing);
+    pub fn add_timing(mut self, timing: TrailEmitterTiming) -> Self {
+        self.timing.push(timing);
+        self
+    }
+
+    pub fn extend_timings(mut self, timings: Vec<TrailEmitterTiming>) -> Self {
+        self.timing.extend(timings);
         self
     }
 
@@ -87,8 +69,15 @@ impl TrailEmitter {
         self.lifetime
     }
 
-    pub fn timing(&self) -> Option<TrailEmitterTiming> {
+    pub fn timings(&self) -> &Vec<TrailEmitterTiming> {
+        &self.timing
+    }
+
+    pub fn timings_of(&self, node_idx: AnimationNodeIndex) -> Vec<&TrailEmitterTiming> {
         self.timing
+            .iter()
+            .filter(|t| t.node_idx() == node_idx)
+            .collect()
     }
 
     pub fn mode(&self) -> TrailInterpolationMode {

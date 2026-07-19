@@ -20,7 +20,7 @@ pub use state::{SampleModel, SampleState};
 use my_meshes::FlatRing3d;
 
 use crate::sample::{
-    billboard::add_billboard_component, emitter::{auto_play, spawn_single_gltf_scene, spawn_trail_from_emitter}, extended_material::{
+    billboard::add_billboard_component, emitter::{auto_play, auto_play_next, insert_animation_graph_with_all_animation, spawn_single_gltf_scene, spawn_trail_from_emitter}, extended_material::{
         ReloadReq, load_global_res, request_load_extended_material,
     }, material::{apply_sandbox_fx_meshes, init_custom_material}, scene_mod::draw_gizmo_for_trail_meshes,
 };
@@ -45,7 +45,7 @@ impl Plugin for SamplePlugin {
             .try_write()
         {
             handlers.push(Box::new(
-                crate::sample::material::ReplaceMaterialGltfExtensionHandler,
+                crate::sample::material::ReplaceMaterialGltfExtensionHandler::default(),
             ));
         } else {
             warn!("Failed to acquire write lock for GltfExtensionHandlers");
@@ -95,7 +95,9 @@ impl Plugin for SamplePlugin {
         .add_systems(
             Update,
             (
+                insert_animation_graph_with_all_animation,
                 auto_play,
+                auto_play_next,
             ),
         )
         .add_systems(
