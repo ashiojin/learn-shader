@@ -448,12 +448,21 @@ pub fn spawn_trail_from_emitter(
                         root: current_root,
                         tip: current_tip,
                         time: current_time,
+                        break_before: false,
                     });
+                    h.was_active = true;
                 }
                 commands.entity(entity).insert(h);
                 continue;
             }
         };
+
+        // Detect the start of a new burst: the emitter is active now but was
+        // idle last frame. The first point pushed for this burst is flagged so
+        // the mesh builder cuts the ribbon instead of bridging the idle gap.
+        if spawn_trail && !history.was_active && !history.points.is_empty() {
+            history.pending_break = true;
+        }
 
         // Push new point if spawning is active
         if spawn_trail {
@@ -467,13 +476,19 @@ pub fn spawn_trail_from_emitter(
             };
 
             if should_push {
+                let break_before = history.pending_break;
                 history.points.push_back(SplineTrailPoint {
                     root: current_root,
                     tip: current_tip,
                     time: current_time,
+                    break_before,
                 });
+                history.pending_break = false;
             }
         }
+
+        // Remember this frame's emission state for next-frame gap detection.
+        history.was_active = spawn_trail;
 
         // Prune old points
         let cutoff_time = current_time - trail_emitter.lifetime();
@@ -481,14 +496,26 @@ pub fn spawn_trail_from_emitter(
             history.points.pop_front();
         }
 
-        // Rebuild or clean up trail entity
-        if history.points.len() >= 2 {
-            let spline_trail = SplineTrail::new(
+        // Rebuild or clean up trail entity.
+        //
+        // `build_mesh` yields `None` when the history holds no drawable ribbon --
+        // e.g. a break has just isolated the single point left over from the
+        // previous burst. Such a frame must be treated exactly like an empty
+        // history: pushing a zero-vertex mesh into `Assets<Mesh>` makes bevy's
+        // MeshAllocator free the old allocation, skip re-allocating, and still
+        // attempt the vertex copy, logging
+        // "Use-after-free: attempted to copy element data for an unallocated key".
+        let new_mesh = if history.points.len() >= 2 {
+            SplineTrail::new(
                 history.points.iter().cloned().collect(),
                 history.subdivisions,
-            );
-            let new_mesh = spline_trail.build_mesh(history.mode);
+            )
+            .build_mesh(history.mode)
+        } else {
+            None
+        };
 
+        if let Some(new_mesh) = new_mesh {
             if let Some(trail_ent) = history.trail_entity {
                 if let Ok(mesh_3d) = q_mesh_3d.get(trail_ent)
                     && let Some(mut mesh_asset) = assets_meshes.get_mut(&mesh_3d.0)
@@ -508,7 +535,7 @@ pub fn spawn_trail_from_emitter(
                 history.trail_entity = Some(spawned_ent);
             }
         } else {
-            // No segments left (or faded completely)
+            // Nothing drawable: no segments left (or faded completely)
             if let Some(trail_ent) = history.trail_entity {
                 commands.entity(trail_ent).try_despawn();
                 history.trail_entity = None;

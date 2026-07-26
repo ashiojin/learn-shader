@@ -208,6 +208,11 @@ pub struct SplineTrailPoint {
     pub root: Vec3,
     pub tip: Vec3,
     pub time: f32,
+    /// When `true`, the trail is cut *before* this point: no ribbon is drawn
+    /// connecting the previous point to this one. This lets a single history
+    /// hold several temporally-separated bursts without bridging the gaps
+    /// between them into one continuous trail.
+    pub break_before: bool,
 }
 
 /// A spline-interpolated trail mesh builder that generates a single mesh from a history of points.
@@ -222,18 +227,35 @@ impl SplineTrail {
     }
 
     /// Build a single Bevy Mesh using the specified interpolation mode.
-    pub fn build_mesh(&self, mode: TrailInterpolationMode) -> Mesh {
-        let n = self.points.len();
-        if n < 2 {
-            return Mesh::new(
-                PrimitiveTopology::TriangleList,
-                RenderAssetUsages::default(),
-            );
+    ///
+    /// Returns `None` when the history holds no drawable ribbon, i.e. no run of
+    /// consecutive (unbroken) points is at least two points long. Callers must
+    /// not substitute an empty `Mesh`: bevy's `MeshAllocator` skips allocating
+    /// for a zero-vertex mesh but still tries to copy its vertex data, which
+    /// logs "Use-after-free: attempted to copy element data for an unallocated
+    /// key".
+    pub fn build_mesh(&self, mode: TrailInterpolationMode) -> Option<Mesh> {
+        // Split the history into contiguous runs, cutting *before* any point
+        // flagged `break_before`. Each run becomes an independent ribbon, so
+        // temporally separated bursts are never bridged into one long trail.
+        let mut runs: Vec<&[SplineTrailPoint]> = Vec::new();
+        if !self.points.is_empty() {
+            let mut start = 0;
+            for i in 1..self.points.len() {
+                if self.points[i].break_before {
+                    runs.push(&self.points[start..i]);
+                    start = i;
+                }
+            }
+            runs.push(&self.points[start..]);
+        }
+        // Only runs with at least two points can form a ribbon.
+        runs.retain(|r| r.len() >= 2);
+
+        if runs.is_empty() {
+            return None;
         }
 
-        let total_segments = (n - 1) * self.subdivisions as usize;
-        let total_segments_f = total_segments as f32;
-        
         struct Slice {
             root: Vec3,
             tip: Vec3,
@@ -241,95 +263,131 @@ impl SplineTrail {
             u: f32,
         }
 
-        let mut slices = Vec::new();
+        // Global parameterisation so UV.x still runs 0..1 across the whole
+        // history (matching the single-run behaviour exactly when there are
+        // no breaks). Counted in point-to-point segments across all runs.
+        let total_point_segments: usize = runs.iter().map(|r| r.len() - 1).sum();
+        let total_subdiv_segments_f =
+            (total_point_segments * self.subdivisions as usize) as f32;
 
-        for i in 0..n - 1 {
-            let p0 = if i > 0 { &self.points[i - 1] } else { &self.points[0] };
-            let p1 = &self.points[i];
-            let p2 = &self.points[i + 1];
-            let p3 = if i + 2 < n { &self.points[i + 2] } else { &self.points[n - 1] };
+        let mut slices: Vec<Slice> = Vec::new();
+        // (start, end) slice-index range per run, so triangles never span runs.
+        let mut run_ranges: Vec<(usize, usize)> = Vec::new();
 
-            let is_last_segment = i == n - 2;
-            let use_linear = is_last_segment && mode == TrailInterpolationMode::LinearLastSegment;
+        let mut seg_offset = 0usize; // point-segments consumed by earlier runs
+        let last_run_idx = runs.len() - 1;
 
-            let max_s = if is_last_segment { self.subdivisions } else { self.subdivisions - 1 };
+        for (run_idx, run) in runs.iter().enumerate() {
+            let run_start_slice = slices.len();
+            let n = run.len();
 
-            for s in 0..=max_s {
-                let u = s as f32 / self.subdivisions as f32;
-                let global_idx = i * self.subdivisions as usize + s as usize;
-                let global_u = global_idx as f32 / total_segments_f;
+            for i in 0..n - 1 {
+                let p0 = if i > 0 { &run[i - 1] } else { &run[0] };
+                let p1 = &run[i];
+                let p2 = &run[i + 1];
+                let p3 = if i + 2 < n { &run[i + 2] } else { &run[n - 1] };
 
-                let (root, tip, time) = if use_linear {
-                    (
-                        p1.root.lerp(p2.root, u),
-                        p1.tip.lerp(p2.tip, u),
-                        p1.time + u * (p2.time - p1.time),
-                    )
-                } else {
-                    (
-                        catmull_rom(p0.root, p1.root, p2.root, p3.root, u),
-                        catmull_rom(p0.tip, p1.tip, p2.tip, p3.tip, u),
-                        p1.time + u * (p2.time - p1.time),
-                    )
-                };
+                let is_last_segment = i == n - 2;
+                // Linear-last-segment applies only to the actively growing
+                // (last) run's final segment.
+                let use_linear = is_last_segment
+                    && run_idx == last_run_idx
+                    && mode == TrailInterpolationMode::LinearLastSegment;
 
-                slices.push(Slice { root, tip, time, u: global_u });
+                let max_s = if is_last_segment { self.subdivisions } else { self.subdivisions - 1 };
+
+                for s in 0..=max_s {
+                    let u = s as f32 / self.subdivisions as f32;
+                    let global_idx = (seg_offset + i) * self.subdivisions as usize + s as usize;
+                    let global_u = if total_subdiv_segments_f > 0.0 {
+                        global_idx as f32 / total_subdiv_segments_f
+                    } else {
+                        0.0
+                    };
+
+                    let (root, tip, time) = if use_linear {
+                        (
+                            p1.root.lerp(p2.root, u),
+                            p1.tip.lerp(p2.tip, u),
+                            p1.time + u * (p2.time - p1.time),
+                        )
+                    } else {
+                        (
+                            catmull_rom(p0.root, p1.root, p2.root, p3.root, u),
+                            catmull_rom(p0.tip, p1.tip, p2.tip, p3.tip, u),
+                            p1.time + u * (p2.time - p1.time),
+                        )
+                    };
+
+                    slices.push(Slice { root, tip, time, u: global_u });
+                }
             }
+
+            run_ranges.push((run_start_slice, slices.len()));
+            seg_offset += n - 1;
         }
 
         let mut vertices = Vec::with_capacity(slices.len() * 2);
         let mut normals_attr = Vec::with_capacity(slices.len() * 2);
         let mut uvs = Vec::with_capacity(slices.len() * 2);
         let mut times = Vec::with_capacity(slices.len() * 2);
-        let mut indices = Vec::new();
+        let mut indices: Vec<u32> = Vec::new();
 
         let mut last_valid_normal = Vec3::Y;
+        let mut base_vertex = 0u32; // running front-side vertex offset per run
 
-        for k in 0..slices.len() {
-            let slice = &slices[k];
-            let dir = (slice.tip - slice.root).normalize_or_zero();
+        for &(start, end) in &run_ranges {
+            for k in start..end {
+                let slice = &slices[k];
+                let dir = (slice.tip - slice.root).normalize_or_zero();
 
-            let move_dir = if k < slices.len() - 1 {
-                (slices[k + 1].root - slice.root).normalize_or_zero()
-            } else if k > 0 {
-                (slice.root - slices[k - 1].root).normalize_or_zero()
-            } else {
-                Vec3::ZERO
-            };
+                // Movement direction stays within the run so boundaries don't
+                // pull the normal toward a neighbouring, disconnected run.
+                let move_dir = if k + 1 < end {
+                    (slices[k + 1].root - slice.root).normalize_or_zero()
+                } else if k > start {
+                    (slice.root - slices[k - 1].root).normalize_or_zero()
+                } else {
+                    Vec3::ZERO
+                };
 
-            let mut normal = move_dir.cross(dir).normalize_or_zero();
-            if normal == Vec3::ZERO {
-                normal = last_valid_normal;
-            } else {
-                last_valid_normal = normal;
+                let mut normal = move_dir.cross(dir).normalize_or_zero();
+                if normal == Vec3::ZERO {
+                    normal = last_valid_normal;
+                } else {
+                    last_valid_normal = normal;
+                }
+
+                vertices.push(slice.root);
+                vertices.push(slice.tip);
+
+                normals_attr.push(normal);
+                normals_attr.push(normal);
+
+                uvs.push([slice.u, 0.0]);
+                uvs.push([slice.u, 1.0]);
+
+                times.push(slice.time);
+                times.push(slice.time);
             }
 
-            vertices.push(slice.root);
-            vertices.push(slice.tip);
+            let run_slices = (end - start) as u32;
+            for i in 0..run_slices.saturating_sub(1) {
+                let base = base_vertex + i * 2;
+                let next = base_vertex + (i + 1) * 2;
 
-            normals_attr.push(normal);
-            normals_attr.push(normal);
+                // Face 1: base (root), next (root), base + 1 (tip)
+                indices.push(base);
+                indices.push(next);
+                indices.push(base + 1);
 
-            uvs.push([slice.u, 0.0]);
-            uvs.push([slice.u, 1.0]);
+                // Face 2: base + 1 (tip), next (root), next + 1 (tip)
+                indices.push(base + 1);
+                indices.push(next);
+                indices.push(next + 1);
+            }
 
-            times.push(slice.time);
-            times.push(slice.time);
-        }
-
-        for i in 0..(slices.len() - 1) {
-            let base = (i * 2) as u32;
-            let next = ((i + 1) * 2) as u32;
-
-            // Face 1: base (root), next (root), base + 1 (tip)
-            indices.push(base);
-            indices.push(next);
-            indices.push(base + 1);
-
-            // Face 2: base + 1 (tip), next (root), next + 1 (tip)
-            indices.push(base + 1);
-            indices.push(next);
-            indices.push(next + 1);
+            base_vertex += run_slices * 2;
         }
 
         let vertex_count = vertices.len();
@@ -349,29 +407,37 @@ impl SplineTrail {
         normals_attr.append(&mut other_normals);
         times.extend(other_times);
 
-        // Indices for the second side (Inner) with reversed winding
-        for i in 0..(slices.len() - 1) {
-            let base = (i * 2) as u32 + index_offset;
-            let next = ((i + 1) * 2) as u32 + index_offset;
+        // Indices for the second side (Inner) with reversed winding, again
+        // connecting only within each run.
+        let mut base_vertex = 0u32;
+        for &(start, end) in &run_ranges {
+            let run_slices = (end - start) as u32;
+            for i in 0..run_slices.saturating_sub(1) {
+                let base = index_offset + base_vertex + i * 2;
+                let next = index_offset + base_vertex + (i + 1) * 2;
 
-            indices.push(base);
-            indices.push(base + 1);
-            indices.push(next);
+                indices.push(base);
+                indices.push(base + 1);
+                indices.push(next);
 
-            indices.push(base + 1);
-            indices.push(next + 1);
-            indices.push(next);
+                indices.push(base + 1);
+                indices.push(next + 1);
+                indices.push(next);
+            }
+            base_vertex += run_slices * 2;
         }
 
-        Mesh::new(
-            PrimitiveTopology::TriangleList,
-            RenderAssetUsages::default(),
+        Some(
+            Mesh::new(
+                PrimitiveTopology::TriangleList,
+                RenderAssetUsages::default(),
+            )
+            .with_inserted_indices(Indices::U32(indices))
+            .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, vertices)
+            .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals_attr)
+            .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
+            .with_inserted_attribute(ATTRIBUTE_TIME, times),
         )
-        .with_inserted_indices(Indices::U32(indices))
-        .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, vertices)
-        .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals_attr)
-        .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
-        .with_inserted_attribute(ATTRIBUTE_TIME, times)
     }
 }
 
@@ -428,23 +494,28 @@ mod tests {
                 root: Vec3::new(0.0, 0.0, 0.0),
                 tip: Vec3::new(0.0, 1.0, 0.0),
                 time: 0.0,
+                break_before: false,
             },
             SplineTrailPoint {
                 root: Vec3::new(1.0, 0.0, 0.0),
                 tip: Vec3::new(1.0, 1.2, 0.0),
                 time: 0.1,
+                break_before: false,
             },
             SplineTrailPoint {
                 root: Vec3::new(2.0, 0.0, 1.0),
                 tip: Vec3::new(2.0, 1.5, 1.0),
                 time: 0.2,
+                break_before: false,
             },
         ];
 
         let spline = SplineTrail::new(points, 4);
         
-        let mesh_cr = spline.build_mesh(TrailInterpolationMode::CatmullRom);
-        let mesh_linear = spline.build_mesh(TrailInterpolationMode::LinearLastSegment);
+        let mesh_cr = spline.build_mesh(TrailInterpolationMode::CatmullRom).unwrap();
+        let mesh_linear = spline
+            .build_mesh(TrailInterpolationMode::LinearLastSegment)
+            .unwrap();
 
         // 3 points = 2 segments.
         // 2 segments * 4 subdivisions = 8 segments total.
@@ -457,5 +528,132 @@ mod tests {
         // 8 segments * 2 triangles per side * 3 indices * 2 sides = 96 indices.
         assert_eq!(mesh_cr.indices().unwrap().len(), 96);
         assert_eq!(mesh_linear.indices().unwrap().len(), 96);
+    }
+
+    #[test]
+    fn test_spline_trail_break_disconnects_runs() {
+        // Two temporally-separated bursts sharing one history:
+        // points 0..=1 are burst A (near x=0..1), points 2..=3 are burst B (near x=5..6).
+        // `break_before` on point 2 must prevent a connecting ribbon across the gap.
+        let subdivisions = 4;
+        let points = vec![
+            SplineTrailPoint {
+                root: Vec3::new(0.0, 0.0, 0.0),
+                tip: Vec3::new(0.0, 1.0, 0.0),
+                time: 0.0,
+                break_before: false,
+            },
+            SplineTrailPoint {
+                root: Vec3::new(1.0, 0.0, 0.0),
+                tip: Vec3::new(1.0, 1.0, 0.0),
+                time: 0.1,
+                break_before: false,
+            },
+            SplineTrailPoint {
+                root: Vec3::new(5.0, 0.0, 0.0),
+                tip: Vec3::new(5.0, 1.0, 0.0),
+                time: 2.0,
+                break_before: true,
+            },
+            SplineTrailPoint {
+                root: Vec3::new(6.0, 0.0, 0.0),
+                tip: Vec3::new(6.0, 1.0, 0.0),
+                time: 2.1,
+                break_before: false,
+            },
+        ];
+
+        let spline = SplineTrail::new(points, subdivisions);
+        let mesh = spline.build_mesh(TrailInterpolationMode::CatmullRom).unwrap();
+
+        // Two independent runs of 2 points each. Each run = 1 * subdivisions = 4 quads
+        // spanning 5 slices → 10 vertices/side. Double-sided → 40 vertices, 96 indices.
+        // A single connected run of 4 points would instead have 3 * subdivisions = 12
+        // quads (13 slices), i.e. the extra bridging segment we must NOT generate.
+        assert_eq!(mesh.count_vertices(), 40);
+        assert_eq!(mesh.indices().unwrap().len(), 96);
+
+        // Behavioral check: nothing should be drawn in the gap between the two bursts.
+        // A bridging Catmull-Rom segment from x=1 to x=5 would place vertices around x=3.
+        let positions = mesh
+            .attribute(Mesh::ATTRIBUTE_POSITION)
+            .and_then(|a| a.as_float3())
+            .unwrap();
+        for p in positions {
+            assert!(
+                p[0] <= 1.5 || p[0] >= 4.5,
+                "vertex at x={} lies in the gap between bursts; runs were bridged",
+                p[0]
+            );
+        }
+    }
+
+    #[test]
+    fn test_spline_trail_without_any_ribbon_yields_no_mesh() {
+        // A break can leave *every* run a single point: the previous burst has
+        // decayed down to one surviving point and the new burst has just pushed
+        // its first (break-flagged) point. There is no ribbon to draw at all.
+        //
+        // Such a history must not produce a Mesh: a zero-vertex mesh handed to
+        // `Assets<Mesh>` makes bevy's MeshAllocator free the old GPU allocation
+        // and then still attempt the vertex copy, logging
+        // "Use-after-free: attempted to copy element data for an unallocated key".
+        let points = vec![
+            SplineTrailPoint {
+                root: Vec3::new(0.0, 0.0, 0.0),
+                tip: Vec3::new(0.0, 1.0, 0.0),
+                time: 0.0,
+                break_before: false,
+            },
+            SplineTrailPoint {
+                root: Vec3::new(5.0, 0.0, 0.0),
+                tip: Vec3::new(5.0, 1.0, 0.0),
+                time: 2.0,
+                break_before: true,
+            },
+        ];
+
+        let spline = SplineTrail::new(points, 4);
+
+        assert!(
+            spline.build_mesh(TrailInterpolationMode::CatmullRom).is_none(),
+            "no run has two points, so there is nothing to draw"
+        );
+    }
+
+    #[test]
+    fn test_spline_trail_lone_point_run_is_dropped() {
+        // A break can isolate a single point (e.g. after old points are pruned).
+        // That one-point run cannot form a ribbon and must be dropped, leaving
+        // only the valid two-point run — without panicking or bridging.
+        let subdivisions = 4;
+        let points = vec![
+            SplineTrailPoint {
+                root: Vec3::new(0.0, 0.0, 0.0),
+                tip: Vec3::new(0.0, 1.0, 0.0),
+                time: 0.0,
+                break_before: false,
+            },
+            SplineTrailPoint {
+                root: Vec3::new(5.0, 0.0, 0.0),
+                tip: Vec3::new(5.0, 1.0, 0.0),
+                time: 2.0,
+                break_before: true,
+            },
+            SplineTrailPoint {
+                root: Vec3::new(6.0, 0.0, 0.0),
+                tip: Vec3::new(6.0, 1.0, 0.0),
+                time: 2.1,
+                break_before: false,
+            },
+        ];
+
+        let spline = SplineTrail::new(points, subdivisions);
+        let mesh = spline.build_mesh(TrailInterpolationMode::CatmullRom).unwrap();
+
+        // Only the [p1, p2] run survives: 1 * subdivisions = 4 quads, 5 slices,
+        // 10 verts/side → 20 verts double-sided, 48 indices.
+        assert_eq!(mesh.count_vertices(), 20);
+        assert_eq!(mesh.indices().unwrap().len(), 48);
     }
 }

@@ -95,6 +95,12 @@ pub struct TrailHistory {
     pub trail_entity: Option<Entity>,
     pub mode: TrailInterpolationMode,
     pub subdivisions: u32,
+    /// Whether the emitter was emitting on the previous frame. Used to detect
+    /// the start of a new burst (idle -> active), which must cut the trail.
+    pub was_active: bool,
+    /// Set when a new burst begins so the next pushed point is flagged
+    /// `break_before`, even if the exact transition frame pushed no point.
+    pub pending_break: bool,
 }
 
 impl TrailHistory {
@@ -104,6 +110,8 @@ impl TrailHistory {
             trail_entity: None,
             mode,
             subdivisions,
+            was_active: false,
+            pending_break: false,
         }
     }
 }
@@ -124,8 +132,12 @@ pub fn draw_gizmo_for_trail_meshes(
         for i in 0..points.len() - 1 {
             let p1 = &points[i];
             let p2 = &points[i + 1];
-            gizmos.line(p1.root, p2.root, bevy::color::palettes::css::RED);
-            gizmos.line(p1.tip, p2.tip, bevy::color::palettes::css::GREEN);
+            // Don't draw a connecting line across a break: the two points
+            // belong to separate bursts.
+            if !p2.break_before {
+                gizmos.line(p1.root, p2.root, bevy::color::palettes::css::RED);
+                gizmos.line(p1.tip, p2.tip, bevy::color::palettes::css::GREEN);
+            }
             gizmos.line(p1.root, p1.tip, bevy::color::palettes::css::BLUE);
         }
         if let Some(last) = points.back() {
