@@ -49,6 +49,41 @@ def update_fx_mesh_pointer(self, context):
             return
     self.target_mesh = None
 
+def get_markers(self, context):
+    items = [('NONE', 'Select a Marker ...', '')]
+    for marker in context.object.animation_data.action.pose_markers:
+        label = f"{marker.name} (#{marker.frame})"
+        items.append((marker.name, label, ""))
+    return items
+
+
+class ActionFrameSelection(bpy.types.PropertyGroup):
+    select_type: bpy.props.EnumProperty(
+        name="Frame Selection Type",
+        items=[('FrameNumber', "Frame Number", "Select by frame number"),
+               ('Marker', "Marker", "Select by marker")
+                # TODO: Add 'Current', and/or other selection types as needed
+        ],
+        default= 'FrameNumber'
+    )
+    frame_number: bpy.props.IntProperty(name="Frame Number", default=-1)
+    marker_name: bpy.props.EnumProperty(
+        name="Marker Name",
+        items=get_markers
+    )
+
+    def get_selected_frame(self, action):
+        if self.select_type == 'FrameNumber':
+            return self.frame_number
+        elif self.select_type == 'Marker':
+            for marker in action.pose_markers:
+                if marker.name == self.marker_name:
+                    print(f"Found marker: {marker.name} at frame {marker.frame}")
+                    return marker.frame
+        # if no valid selection, return None with a warning
+        self.report({'WARNING'}, "No valid frame selection found.")
+        return None
+
 class AshiojinSandboxActionConfig(bpy.types.PropertyGroup):
     mesh_list_enum: bpy.props.EnumProperty(
         name="Emitter Mesh",
@@ -59,8 +94,19 @@ class AshiojinSandboxActionConfig(bpy.types.PropertyGroup):
         type=bpy.types.Object,
         name="Tracked Mesh Data"
     )
-    start_frame: bpy.props.IntProperty(name="Start Frame", default=1)
-    end_frame: bpy.props.IntProperty(name="End Frame", default=2)
+    start: bpy.props.PointerProperty(type=ActionFrameSelection)
+    end: bpy.props.PointerProperty(type=ActionFrameSelection)
+
+
+def add_ui_ActionFrameSelection(item, layout, label):
+    box = layout.box()
+    box.label(text=label)
+    box.prop(item, "select_type", text="Selection Type")
+
+    if item.select_type == 'FrameNumber':
+        box.prop(item, "frame_number", text="Frame Number")
+    elif item.select_type == 'Marker':
+        box.prop(item, "marker_name", text="Marker Name")
 
 # TODO: Make other properties to classes
 
@@ -80,15 +126,17 @@ class MY_UL_action_fx_list(bpy.types.UIList):
                 box.label(text=f"Tracking Live ID: {item.target_mesh.name}", icon='LINKED')
             else:
                 box.label(text="No valid mesh tracked.", icon='ERROR')
-            box.prop(item, "start_frame")
-            box.prop(item, "end_frame")
+
+            add_ui_ActionFrameSelection(item.start, box, label="Start Frame")
+            add_ui_ActionFrameSelection(item.end, box, label="End Frame")
 
             box.operator("action_fx_configs.delete_item", text="Delete FX Config", icon='X')
         elif self.layout_type in {'COMPACT'}:
-            layout.label(text=f"{index + 1}: {item.target_mesh.name} ({item.start_frame}-{item.end_frame})")
+            layout.label(text=f"{index + 1}: {item.target_mesh.name} ({item.start.get_selected_frame(data.action)}-{item.end.get_selected_frame(data.action)})")
             layout.operator("action_fx_configs.delete_item", text="Delete FX Config", icon='X')
         else:
             layout.label(text=f"FX Config {index + 1}: {item.target_mesh.name}")
+
 
 class ACTION_FX_CONFIGS_OT_new_item(bpy.types.Operator):
     bl_idname = "action_fx_configs.new_item"
@@ -128,6 +176,7 @@ class ACTION_FX_CONFIGS_OT_delete_item(bpy.types.Operator):
 # ====================================================================
 
 def register_properties():
+    bpy.utils.register_class(ActionFrameSelection)
     bpy.utils.register_class(AshiojinSandboxShaderParameters)
     
     # Material Properties
@@ -177,6 +226,7 @@ def unregister_properties():
     bpy.utils.unregister_class(MY_UL_action_fx_list)
     bpy.utils.unregister_class(ACTION_FX_CONFIGS_OT_new_item)
     bpy.utils.unregister_class(ACTION_FX_CONFIGS_OT_delete_item)
+    bpy.utils.unregister_class(ActionFrameSelection)
 
 
 # ====================================================================
@@ -360,10 +410,13 @@ class glTF2ExportUserExtension:
         for fx_config in action_data.action.ashiojin_fx_configs:
             if fx_config.target_mesh:
                 #print(f"name?{fx_config.target_mesh.data.name}")
+                start_frame = fx_config.start.get_selected_frame(action_data.action)
+                end_frame = fx_config.end.get_selected_frame(action_data.action)
+                print(f"FX Config: {fx_config.target_mesh.name}, Start Frame: {start_frame}, End Frame: {end_frame}")
                 fx_config_list.append({
                     "target_name": fx_config.target_mesh.data.name,
-                    "start_sec": fx_config.start_frame / fps,
-                    "end_sec": fx_config.end_frame / fps
+                    "start_sec": start_frame / fps,
+                    "end_sec": end_frame / fps,
                 })
             else:
                 print(f"Warning: FX config in action '{action_data.action.name}' has no valid target mesh.")
