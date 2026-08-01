@@ -81,7 +81,7 @@ class ActionFrameSelection(bpy.types.PropertyGroup):
                     print(f"Found marker: {marker.name} at frame {marker.frame}")
                     return marker.frame
         # if no valid selection, return None with a warning
-        self.report({'WARNING'}, "No valid frame selection found.")
+        print(f"get_selected_frame:No valid frame selection found: {self.select_type}, {self.frame_number}, {self.marker_name}")
         return None
 
 class AshiojinSandboxActionConfig(bpy.types.PropertyGroup):
@@ -404,7 +404,7 @@ class glTF2ExportUserExtension:
             print(f"not ashiojin_fx_configs")
             return
 
-        scene = bpy.context.scene
+        scene = bpy.context.scene # FIXME: for multiple scenes, this may not be the correct scene. Consider recording frames at here and then calculating times in the gather_scene_hook instead. Or recording only frames for actions and recording the scene fps in the gather_scene_hook separately.
         fps = scene.render.fps / scene.render.fps_base
         fx_config_list = []
         for fx_config in action_data.action.ashiojin_fx_configs:
@@ -437,6 +437,81 @@ class glTF2ExportUserExtension:
                 },
                 required=False
             )
+
+    def _get_bone_paths_from_armature(self, armature_obj):
+        bone_paths = {}
+
+        def traverse(bone, current_path):
+            print(f"** Traversing Bone: {bone.name}, Current Path: {current_path}")
+            if current_path:
+                path = current_path.copy()
+                path.append(bone.name)
+            else:
+                path = [bone.name]
+
+            bone_paths[bone.name] = path
+
+            for child in bone.children:
+                traverse(child, path)
+
+        root_bones = [b for b in armature_obj.data.bones if b.parent is None]
+        for root in root_bones:
+            traverse(root, [])
+
+        return bone_paths
+
+    def gather_scene_hook(self, gltf2_scene, blender_scene, export_settings):
+        print(f"Gathering Armature Bone Paths for Scene: {blender_scene.name}")
+        all_amrature_bone_paths = {}
+
+        for obj in blender_scene.objects:
+            if obj.type == 'ARMATURE':
+                bone_paths =self._get_bone_paths_from_armature(obj)
+                all_amrature_bone_paths[obj.name] = bone_paths
+
+                print(f"=== Armature: {obj.name} ===")
+                for bone_name, path in bone_paths.items():
+                    print(f"Bone: {bone_name}, Path: {path}")
+
+        extension_name = "ASHIOJIN_scene_armature_bone_paths"
+        # {
+        #    armature_bone_paths: [
+        #       {
+        #           armature: "arm_and_rod",
+        #           bone_paths: [ "upper_arm" : [ "upper_arm" ], "lower_arm": [ "upper_arm", "lower_arm"], "rod" : [...] ]
+        #       },
+        #       ...
+        #    ]
+        # }
+        for armature_name, bone_paths in all_amrature_bone_paths.items():
+            if gltf2_scene.extensions is None:
+                gltf2_scene.extensions = {}
+            gltf2_scene.extensions[extension_name] = self.Extension(
+                name=extension_name,
+                extension={
+                    "armature_bone_paths": [
+                        {
+                            "armature": armature_name,
+                            "bone_paths": bone_paths
+                        }
+                    ]
+                },
+                required=False
+            )
+
+    # def gather_gltf_hook(self, active_scene_idx, scenes, animations, export_settings):
+    #     all_amrature_bone_paths = {}
+    #
+    #     print(f"Gathering Armature Bone Paths for all scenes...")
+    #
+    #     for obj in bpy.context.scene.objects:
+    #         if obj.type == 'ARMATURE':
+    #             bone_paths =self._get_bone_paths_from_armature(obj)
+    #             all_amrature_bone_paths[obj.name] = bone_paths
+    #
+    #             print(f"=== Armature: {obj.name} ===")
+    #             for bone_name, path in bone_paths.items():
+    #                 print(f"Bone: {bone_name}, Path: {path}")
 
 if __name__ == "__main__":
     register()

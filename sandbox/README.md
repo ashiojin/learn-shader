@@ -85,8 +85,30 @@ python3 -m http.server 8080
   - Some objects around sample
 - File selector to read other fragment shaders
 - More models?
+- Gltf extensions
+  - Animation Node Tree
+
+### Brainstorm:Animation Node Tree
+
+- define an animation graph of bevy
+  - nodes:
+    - root
+    - clip
+    - blend (can have masks)
+    - additive blend (can have masks)
+  - nodes has:
+    - ID for an animation control logic
+    - (except root node) only one parent
+    - weight
+    - (except root node) masks
+    - (only clip node) play state & speed & seek_time & repeat mode
+- written by json in our Gltf extension value
+- loaded by Gltf our extension handler, and converted to an animation graph
+
+- Web/Wasm API exposes CRUD methods for animation graph's nodes states
 
 
 ## Issues
+
 
 
