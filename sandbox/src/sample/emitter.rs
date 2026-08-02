@@ -248,6 +248,12 @@ pub fn insert_animation_graph_with_all_animation(
             let node = graph.get_mut(first_node).unwrap();
             node.weight = 1.0;
 
+            // === DEBUG ===
+            // let mut str = String::new();
+            // graph.save(&mut str).unwrap();
+            // info!("AnimationGraph for entity {:?}:{}", entity, str);
+            // === DEBUG ===
+
             let h_graph = animation_graphs.add(graph);
             commands.entity(entity).try_insert((
                 AutoPlay::new(first_node, node_list, true, AnimationGraphHandle(h_graph)),

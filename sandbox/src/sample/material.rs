@@ -220,46 +220,47 @@ pub fn insert_sample_material(
     }
 }
 
-#[derive(Component, Reflect, Default, serde::Deserialize, Debug, Clone)]
+const EXTENSION_NAME_MATERIAL: &str = "ASHIOJIN_material_sandbox";
+
+#[derive(Component, Reflect, Default, serde::Deserialize, serde::Serialize, Debug, Clone)]
 #[reflect(Component)]
 pub struct SandboxExtension {
     pub shader_type: String,
     pub param1: [f32; 4],
 }
 
-const EXTENSION_MATERIAL_NAME: &str = "ASHIOJIN_material_sandbox";
+const EXTENSION_NAME_MESH_FX_CONFIG: &str = "ASHIOJIN_mesh_fx_config";
 
-#[derive(Component, Reflect, Default, serde::Deserialize, Debug, Clone)]
+#[derive(Component, Reflect, Default, serde::Deserialize, serde::Serialize, Debug, Clone)]
 #[reflect(Component)]
 pub struct SandboxMeshFxConfigExtension {
     pub is_fx_mesh: bool,
     pub fx_type: String,
 }
-const EXTENSION_MESH_FX_CONFIG_NAME: &str = "ASHIOJIN_mesh_fx_config";
 
-const EXTENSION_ANIMATION_FX_CONFIGS_NAME: &str = "ASHIOJIN_action_fx_config";
+const EXTENSION_NAME_ACTION_FX_CONFIG: &str = "ASHIOJIN_action_fx_config";
 
-#[derive(Component, Reflect, Default, serde::Deserialize, Debug, Clone)]
-#[reflect(Component)]
+#[derive(Reflect, Default, serde::Deserialize, serde::Serialize, Debug, Clone)]
 pub struct SandboxActionFxConfigExtension {
     fx_configs: Vec<FxConfig>,
 }
-#[derive(Reflect, Default, serde::Deserialize, Debug, Clone)]
+#[derive(Reflect, Default, serde::Deserialize, serde::Serialize, Debug, Clone)]
 pub struct FxConfig {
     pub target_name: String,
     pub start_sec: f32,
     pub end_sec: f32,
 }
 
+#[derive(Default, Clone)]
+pub struct ReplaceMaterialGltfExtensionHandler {
+    // FIXME: rename and/or separate into some handlers
+    animation_fx_configs: SandboxActionFxConfig,
+}
+
 #[derive(Component, Reflect, Default, Debug, Clone)]
 #[reflect(Component)]
 pub struct SandboxActionFxConfig {
     pub maps: HashMap<String, Vec<FxConfig>>, // Animation(Action) name -> Vec<FxConfig>
-}
-
-#[derive(Default, Clone)]
-pub struct ReplaceMaterialGltfExtensionHandler {
-    animation_fx_configs: SandboxActionFxConfig,
 }
 
 impl bevy::gltf::extensions::GltfExtensionHandler for ReplaceMaterialGltfExtensionHandler {
@@ -276,7 +277,7 @@ impl bevy::gltf::extensions::GltfExtensionHandler for ReplaceMaterialGltfExtensi
         entity: &mut EntityWorldMut,
         _material_label: &str,
     ) {
-        if let Some(extension_value) = material.extension_value(EXTENSION_MATERIAL_NAME) {
+        if let Some(extension_value) = material.extension_value(EXTENSION_NAME_MATERIAL) {
             let sandbox_extension: SandboxExtension =
                 serde_json::from_value(extension_value.clone())
                     .expect("Failed to parse ASHIOJIN_material_sandbox extension");
@@ -288,7 +289,7 @@ impl bevy::gltf::extensions::GltfExtensionHandler for ReplaceMaterialGltfExtensi
                 debug!("{t:?}");
             }
         }
-        if let Some(extension_value) = mesh.extension_value(EXTENSION_MESH_FX_CONFIG_NAME) {
+        if let Some(extension_value) = mesh.extension_value(EXTENSION_NAME_MESH_FX_CONFIG) {
             let mesh_fx_config_extension: SandboxMeshFxConfigExtension =
                 serde_json::from_value(extension_value.clone())
                     .expect("Failed to parse ASHIOJIN_mesh_fx_config extension");
@@ -310,19 +311,20 @@ impl bevy::gltf::extensions::GltfExtensionHandler for ReplaceMaterialGltfExtensi
         _animation_clip: &mut AnimationClip,
     ) {
         if let Some(extension_value) =
-            gltf_animation.extension_value(EXTENSION_ANIMATION_FX_CONFIGS_NAME)
+            gltf_animation.extension_value(EXTENSION_NAME_ACTION_FX_CONFIG)
         {
             info!(
                 "Animation {:?} has extension {:?} = {:?}",
                 gltf_animation.name(),
-                EXTENSION_ANIMATION_FX_CONFIGS_NAME,
+                EXTENSION_NAME_ACTION_FX_CONFIG,
                 extension_value
             );
-            let fx_config_extenion: SandboxActionFxConfigExtension = serde_json::from_value(extension_value.clone())
-                .expect("Failed to parse ASHIOJIN_animation_fx_config extension");
+            let fx_config_extenion: SandboxActionFxConfigExtension =
+                serde_json::from_value(extension_value.clone())
+                    .expect("Failed to parse ASHIOJIN_animation_fx_config extension");
             self.animation_fx_configs.maps.insert(
                 gltf_animation.name().unwrap_or_default().to_string(),
-                fx_config_extenion.fx_configs
+                fx_config_extenion.fx_configs,
             );
         }
     }
@@ -445,9 +447,10 @@ pub fn apply_sandbox_fx_meshes(
 ) {
     // Add TrailEmitter
     for (root_entity, auto_play) in q_scene_root.iter() {
-        let Some((_, fx_config)) = q_children.iter_descendants(root_entity).find_map(|entity| {
-            q_fx_cocnfig.get(entity).ok()
-        }) else {
+        let Some((_, fx_config)) = q_children
+            .iter_descendants(root_entity)
+            .find_map(|entity| q_fx_cocnfig.get(entity).ok())
+        else {
             info!(
                 "Scene root entity {:?} has AutoPlay but no SandboxActionFxConfig",
                 root_entity
@@ -472,6 +475,8 @@ pub fn apply_sandbox_fx_meshes(
                     );
                     return;
                 }
+                // TODO: Should use `fx_type` to determine which effect to apply. For now, we only have one effect, so we ignore it.
+                // The below code assumes that the `fx_type` is always "trail", and we will add a TrailEmitter to the entity.
 
                 let mut timings = vec![];
                 for (action_name, fx_configs) in fx_config.maps.iter() {
@@ -513,76 +518,5 @@ pub fn apply_sandbox_fx_meshes(
                 ));
             }
         });
-
     }
-
-
-
-    // TODO: Should use `fx_type` to determine which effect to apply. For now, we only have one effect, so we ignore it.
-    // for (entity, mesh_fx_config_extension, name, _mesh3d) in query.iter() {
-    //     if !mesh_fx_config_extension.is_fx_mesh {
-    //         info!(
-    //             "Skipping entity {:?} (name: {:?}) because is_fx_mesh is false",
-    //             entity,
-    //             name.as_str()
-    //         );
-    //         continue;
-    //     }
-    //
-    //     let Some((_root_entity, auto_play, op_fx_config)) = q_children
-    //         .iter_ancestors(entity)
-    //         .find_map(|e| q_scene_root.get(e).ok())
-    //     else {
-    //         info!(
-    //             "Skipping entity {:?} (name: {:?}) because it is not a child of a scene root with AutoPlay and SandboxActionFxConfig",
-    //             entity,
-    //             name.as_str()
-    //         );
-    //         continue;
-    //     };
-    //
-    //     let Some(fx_config) = op_fx_config else {
-    //         info!(
-    //             "Skipping entity {:?} (name: {:?}) because it is not a child of a scene root with SandboxActionFxConfig",
-    //             entity,
-    //             name.as_str()
-    //         );
-    //         continue;
-    //     };
-    //
-    //     let mut timings = vec![];
-    //     for (action_name, fx_configs) in fx_config.maps.iter() {
-    //         let Some(anim_node_idx) = auto_play
-    //             .node_idx_list()
-    //             .iter()
-    //             .find(|(n, _)| n.as_str() == action_name.as_str())
-    //             .map(|(_, idx)| idx)
-    //         else {
-    //             continue;
-    //         };
-    //         let fx_configs = fx_configs
-    //             .iter()
-    //             .filter(|fx| fx.target_name == name.as_str())
-    //             .map(|fx| TrailEmitterTiming::new(*anim_node_idx, fx.start_sec, fx.end_sec));
-    //
-    //         timings.extend(fx_configs);
-    //     }
-    //
-    //     info!(
-    //         "Adding TrailEmitter to entity {:?} (name: {:?}) with timings: {:?}",
-    //         entity,
-    //         name.as_str(),
-    //         timings
-    //     );
-    //
-    //     commands.entity(entity).try_insert((
-    //         TrailEmitter::new(0.2).extend_timings(timings),
-    //         // TODO: Informations to define an effect emitter and animation clips & graph
-    //         // should be included .gltf or something asset file including .gltf file path(es),
-    //         // and then should be used to construct required Components.
-    //         // Currenty, Our blender plugin does not have features to define & export these infomrations. So we just hardcode them here for now.
-    //         Visibility::Hidden,
-    //     ))
-    //         ;
-    // }
 }
