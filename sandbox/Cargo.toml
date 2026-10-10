@@ -16,7 +16,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 wasm-bindgen= { workspace = true }
 
-[target.'cfg(windows)'.dependencies]
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
 axum = "0.7"
 tokio = { version = "1", features = ["full"] }
 tower-http = { version = "0.5", features = ["cors"] }
