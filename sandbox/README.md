@@ -66,10 +66,11 @@ cargo install wasm-bindgen-cli
 cargo build --release --target wasm32-unknown-unknown
 wasm-bindgen --no-typescript --target web --out-dir ./out-web/ ../target/wasm32-unknown-unknown/release/sandbox.wasm
 cp src-web/index.html out-web/
+cp -r assets out-web/
 
 # Run
 cd out-web/
-python3 -m http.server 8080
+python3 -m http.server 8080 --directory out-web/
 ```
 
 ## TODO
